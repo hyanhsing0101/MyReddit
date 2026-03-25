@@ -1,0 +1,29 @@
+name: myreddit
+
+services:
+  mysql-db:
+    image: my-mysql:local
+    pull_policy: never
+    container_name: myreddit_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: myreddit
+      MYSQL_USER: hyan
+      MYSQL_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+    platform: linux/amd64
+
+  redis:
+    image: my-redis:local
+    pull_policy: never
+    container_name: myreddit_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis_data:/data
+    command: redis-server --save 60 1 --loglevel warning
