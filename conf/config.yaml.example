@@ -1,7 +1,9 @@
-app:
-  name: "web_app"
-  mode: "dev"
-  port: 8081
+name: "myreddit"
+mode: "dev"
+version: "v0.0.1"
+port: 8081
+start_time: "2026-03-24"
+machine_id: 1
 
 log:
   level: "debug"

@@ -8,6 +8,7 @@ import (
 	"myreddit/dao/mysql"
 	"myreddit/dao/redis"
 	"myreddit/logger"
+	"myreddit/pkg/snowflake"
 	"myreddit/routes"
 	"myreddit/settings"
 	"net/http"
@@ -52,6 +53,11 @@ func main() {
 		return
 	}
 	defer redis.Close()
+
+	if err := snowflake.Init(settings.Conf.StartTime, settings.Conf.MachineID); err != nil {
+		fmt.Printf("init snowflake failed, err:%v\n", err)
+		return
+	}
 
 	r := routes.Setup()
 
