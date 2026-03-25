@@ -1,0 +1,20 @@
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Logs (your program writes web_app.log)
+*.log
+web_app.log
+
+# Secrets / local config
+conf/config.yaml
+config.yaml
+
+# Local env files (if you add them later)
+.env
+*.env
+
+# Built binary (if generated)
+web_app
+web_app.exe
