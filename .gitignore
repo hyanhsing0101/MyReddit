@@ -3,9 +3,9 @@
 *.iml
 .vscode/
 
-# Logs (your program writes web_app.log)
+# Logs (your program writes myreddit.log)
 *.log
-web_app.log
+myreddit.log
 
 # Secrets / local config
 conf/config.yaml
@@ -16,5 +16,5 @@ config.yaml
 *.env
 
 # Built binary (if generated)
-web_app
-web_app.exe
+myreddit
+myreddit.exe

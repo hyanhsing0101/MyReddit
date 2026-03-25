@@ -2,7 +2,7 @@ package redis
 
 import (
 	"fmt"
-	"web_app/settings"
+	"myreddit/settings"
 
 	"github.com/go-redis/redis"
 )

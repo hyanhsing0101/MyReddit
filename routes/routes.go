@@ -1,8 +1,8 @@
 package routes
 
 import (
+	"myreddit/logger"
 	"net/http"
-	"web_app/logger"
 
 	"github.com/gin-gonic/gin"
 )

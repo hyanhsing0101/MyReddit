@@ -1,4 +1,4 @@
-module web_app
+module myreddit
 
 go 1.26
 

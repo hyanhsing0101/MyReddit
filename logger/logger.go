@@ -1,6 +1,8 @@
 package logger
 
 import (
+	"fmt"
+	"myreddit/settings"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -8,7 +10,6 @@ import (
 	"runtime/debug"
 	"strings"
 	"time"
-	"web_app/settings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -96,7 +97,10 @@ func GinRecovery(stack bool) gin.HandlerFunc {
 						zap.Any("error", err),
 						zap.String("request", string(httpRequest)),
 					)
-					c.Error(err.(error))
+					err := c.Error(err.(error))
+					if err != nil {
+						fmt.Printf("%+v\n", err)
+					}
 					c.Abort()
 					return
 				}

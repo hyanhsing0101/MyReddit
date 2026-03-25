@@ -2,7 +2,7 @@ package mysql
 
 import (
 	"fmt"
-	"web_app/settings"
+	"myreddit/settings"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"

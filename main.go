@@ -5,16 +5,16 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"myreddit/dao/mysql"
+	"myreddit/dao/redis"
+	"myreddit/logger"
+	"myreddit/routes"
+	"myreddit/settings"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-	"web_app/dao/mysql"
-	"web_app/dao/redis"
-	"web_app/logger"
-	"web_app/routes"
-	"web_app/settings"
 
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -33,7 +33,12 @@ func main() {
 		fmt.Printf("init logger failed, err:%v\n", err)
 		return
 	}
-	defer zap.L().Sync()
+	defer func(l *zap.Logger) {
+		err := l.Sync()
+		if err != nil {
+			fmt.Printf("sync logger failed, err:%v\n", err)
+		}
+	}(zap.L())
 	zap.L().Debug("init logger success")
 
 	if err := mysql.Init(settings.Conf.MySQLConfig); err != nil {
