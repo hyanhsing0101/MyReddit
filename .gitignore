@@ -19,5 +19,4 @@ config.yaml
 myreddit
 myreddit.exe
 
-.mysql_data/
-.redis_data/
+.data/
