@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"myreddit/controller"
 	"myreddit/dao/mysql"
 	"myreddit/dao/redis"
 	"myreddit/logger"
@@ -59,10 +60,15 @@ func main() {
 		return
 	}
 
-	r := routes.Setup()
+	if err := controller.InitTrans("zh"); err != nil {
+		fmt.Printf("init trans failed, err:%v\n", err)
+		return
+	}
+
+	r := routes.SetupRouter()
 
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", viper.GetInt("app.port")),
+		Addr:    fmt.Sprintf(":%d", viper.GetInt("port")),
 		Handler: r,
 	}
 	go func() {
