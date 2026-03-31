@@ -1,10 +1,11 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
+	"myreddit/dao/mysql"
 	"myreddit/logic"
 	"myreddit/models"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -18,39 +19,25 @@ func SignUpHandler(c *gin.Context) {
 		zap.L().Error("SignUp With Invalid Param", zap.Error(err))
 		errs, ok := err.(validator.ValidationErrors)
 		if !ok {
-			c.JSON(http.StatusOK, gin.H{
-				"msg": err.Error(),
-			})
+			ResponseError(c, CodeInvalidParam)
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{
-			"msg": removeTopStruct(errs.Translate(trans)),
-		})
+		ResponseErrorWithMsg(c, CodeInvalidParam, errs.Translate(trans))
 		return
 	}
-
-	// 手动参数业务规则校验
-	//if len(p.Username) == 0 || len(p.Password) == 0 || len(p.RePassword) == 0 || p.Password != p.RePassword {
-	//	zap.L().Error("SignUp With Invalid Param")
-	//	c.JSON(http.StatusOK, gin.H{
-	//		"msg": "请求参数有误",
-	//	})
-	//	return
-	//}
-
-	fmt.Println(p)
 
 	// 业务处理
 	if err := logic.SignUp(p); err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"msg": "sign up failed: " + err.Error(),
-		})
+		zap.L().Error("SignUp With Invalid Param", zap.Error(err))
+		if errors.Is(err, mysql.ErrorUserExist) {
+			ResponseError(c, CodeUserExist)
+			return
+		}
+		ResponseError(c, CodeServerBusy)
 		return
 	}
 	// 返回响应
-	c.JSON(http.StatusOK, gin.H{
-		"msg": "sign up success",
-	})
+	ResponseSuccess(c, nil)
 }
 
 func LoginHandler(c *gin.Context) {
@@ -60,14 +47,10 @@ func LoginHandler(c *gin.Context) {
 		zap.L().Error("Login With Invalid Param", zap.Error(err))
 		errs, ok := err.(validator.ValidationErrors)
 		if !ok {
-			c.JSON(http.StatusOK, gin.H{
-				"msg": err.Error(),
-			})
+			ResponseError(c, CodeInvalidParam)
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{
-			"msg": removeTopStruct(errs.Translate(trans)),
-		})
+		ResponseErrorWithMsg(c, CodeInvalidParam, removeTopStruct(errs.Translate(trans)))
 		return
 	}
 
@@ -75,13 +58,14 @@ func LoginHandler(c *gin.Context) {
 
 	// 业务处理
 	if err := logic.Login(p); err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"msg": "login failed: " + err.Error(),
-		})
+		zap.L().Error("Login With Invalid Param", zap.Error(err), zap.String("username", p.Username))
+		if errors.Is(err, mysql.ErrorUserNotExist) {
+			ResponseError(c, CodeUserNotExist)
+			return
+		}
+		ResponseError(c, CodeInvalidPassword)
 		return
 	}
 	// 返回响应
-	c.JSON(http.StatusOK, gin.H{
-		"msg": "login success",
-	})
+	ResponseSuccess(c, nil)
 }
