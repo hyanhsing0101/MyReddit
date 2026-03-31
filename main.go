@@ -1,10 +1,8 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
-	"log"
 	"myreddit/controller"
 	"myreddit/dao/mysql"
 	"myreddit/dao/redis"
@@ -12,13 +10,7 @@ import (
 	"myreddit/pkg/snowflake"
 	"myreddit/routes"
 	"myreddit/settings"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
@@ -31,7 +23,7 @@ func main() {
 		return
 	}
 
-	if err := logger.Init(settings.Conf.LogConfig); err != nil {
+	if err := logger.Init(settings.Conf.LogConfig, settings.Conf.Mode); err != nil {
 		fmt.Printf("init logger failed, err:%v\n", err)
 		return
 	}
@@ -65,26 +57,33 @@ func main() {
 		return
 	}
 
-	r := routes.SetupRouter()
+	r := routes.SetupRouter(settings.Conf.Mode)
 
-	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", viper.GetInt("port")),
-		Handler: r,
+	err := r.Run(fmt.Sprintf(":%d", settings.Conf.Port))
+	if err != nil {
+		zap.L().Error("start server failed", zap.Error(err))
+		fmt.Printf("start server failed, err:%v\n", err)
+		return
 	}
-	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\n", err)
-		}
-	}()
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	zap.L().Info("Shutdown Server ...")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		zap.L().Fatal("Sever Shutdown", zap.Error(err))
-	}
-	zap.L().Info("Server exiting")
+
+	//srv := &http.Server{
+	//	Addr:    fmt.Sprintf(":%d", viper.GetInt("port")),
+	//	Handler: r,
+	//}
+	//go func() {
+	//	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	//		log.Fatalf("listen: %s\n", err)
+	//	}
+	//}()
+	//quit := make(chan os.Signal, 1)
+	//signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	//<-quit
+	//zap.L().Info("Shutdown Server ...")
+	//ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	//defer cancel()
+	//if err := srv.Shutdown(ctx); err != nil {
+	//	zap.L().Fatal("Sever Shutdown", zap.Error(err))
+	//}
+	//zap.L().Info("Server exiting")
 
 }
