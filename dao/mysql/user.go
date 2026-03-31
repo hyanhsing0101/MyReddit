@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"crypto/md5"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"myreddit/models"
@@ -21,8 +22,21 @@ func CheckUserExist(username string) (err error) {
 	return
 }
 
-func QueryUserByUsername() {
-
+func Login(user *models.User) (err error) {
+	oPassword := user.Password
+	sqlStr := "select user_id, username, password from user where username = ?"
+	err = db.Get(user, sqlStr, user.Username)
+	if err == sql.ErrNoRows {
+		return errors.New("user not exist")
+	}
+	if err != nil {
+		return err
+	}
+	password := encryptPassword(oPassword, user.Username)
+	if password != user.Password {
+		return errors.New("password error")
+	}
+	return
 }
 
 func InsertUser(user *models.User) error {
