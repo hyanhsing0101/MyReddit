@@ -3,6 +3,7 @@ package routes
 import (
 	"myreddit/controller"
 	"myreddit/logger"
+	"myreddit/midlleware"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -18,7 +19,7 @@ func SetupRouter(mode string) *gin.Engine {
 	r.POST("/signup", controller.SignUpHandler)
 	r.POST("/login", controller.LoginHandler)
 
-	r.GET("/ping", func(c *gin.Context) {
+	r.GET("/ping", midlleware.JWTAuthMiddleware(), func(c *gin.Context) {
 		c.String(http.StatusOK, "pong")
 	})
 	return r
