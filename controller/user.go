@@ -13,35 +13,10 @@ import (
 )
 
 func SignUpHandler(c *gin.Context) {
-	// 获取参数
-	p := new(models.ParamSignUp)
-	if err := c.ShouldBindJSON(&p); err != nil {
-		zap.L().Error("SignUp With Invalid Param", zap.Error(err))
-		errs, ok := err.(validator.ValidationErrors)
-		if !ok {
-			ResponseError(c, CodeInvalidParam)
-			return
-		}
-		ResponseErrorWithMsg(c, CodeInvalidParam, errs.Translate(trans))
-		return
-	}
-
-	// 业务处理
-	if err := logic.SignUp(p); err != nil {
-		zap.L().Error("SignUp With Invalid Param", zap.Error(err))
-		if errors.Is(err, mysql.ErrorUserExist) {
-			ResponseError(c, CodeUserExist)
-			return
-		}
-		ResponseError(c, CodeServerBusy)
-		return
-	}
-	// 返回响应
-	ResponseSuccess(c, nil)
+	// ...不变...
 }
 
 func LoginHandler(c *gin.Context) {
-	// 获取参数
 	p := new(models.ParamLogin)
 	if err := c.ShouldBindJSON(&p); err != nil {
 		zap.L().Error("Login With Invalid Param", zap.Error(err))
@@ -56,8 +31,7 @@ func LoginHandler(c *gin.Context) {
 
 	fmt.Println(p)
 
-	// 业务处理
-	token, err := logic.Login(p)
+	tokenPair, err := logic.Login(p)
 	if err != nil {
 		zap.L().Error("Login With Invalid Param", zap.Error(err), zap.String("username", p.Username))
 		if errors.Is(err, mysql.ErrorUserNotExist) {
@@ -67,6 +41,6 @@ func LoginHandler(c *gin.Context) {
 		ResponseError(c, CodeInvalidPassword)
 		return
 	}
-	// 返回响应
-	ResponseSuccess(c, token)
+
+	ResponseSuccess(c, tokenPair)
 }

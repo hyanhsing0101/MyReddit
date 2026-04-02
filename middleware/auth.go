@@ -1,7 +1,8 @@
-package midlleware
+package middleware
 
 import (
 	"myreddit/controller"
+	"myreddit/dao/mysql"
 	"myreddit/pkg/jwt"
 	"strings"
 
@@ -22,13 +23,29 @@ func JWTAuthMiddleware() func(c *gin.Context) {
 			c.Abort()
 			return
 		}
+
 		mc, err := jwt.ParseToken(parts[1])
 		if err != nil {
 			controller.ResponseError(c, controller.CodeInvalidToken)
 			c.Abort()
 			return
 		}
-		c.Set(controller.ContextUserIDkey, mc.Username)
+
+		// 只允许 access token 访问受保护接口
+		if mc.TokenType != jwt.TokenTypeAccess {
+			controller.ResponseError(c, controller.CodeInvalidToken)
+			c.Abort()
+			return
+		}
+
+		ok, err := mysql.CheckUserByIDAndName(mc.UserID, mc.Username)
+		if err != nil || !ok {
+			controller.ResponseError(c, controller.CodeInvalidToken)
+			c.Abort()
+			return
+		}
+
+		c.Set(controller.ContextUserIDkey, mc.UserID)
 		c.Next()
 	}
 }

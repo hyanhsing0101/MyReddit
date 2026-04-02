@@ -28,6 +28,15 @@ func CheckUserExist(username string) (err error) {
 	return
 }
 
+func CheckUserByIDAndName(userID int64, username string) (bool, error) {
+	sqlStr := "select count(user_id) from user where user_id = ? and username = ?"
+	var count int
+	if err := db.Get(&count, sqlStr, userID, username); err != nil {
+		return false, err
+	}
+	return count == 1, nil
+}
+
 func Login(user *models.User) (err error) {
 	oPassword := user.Password
 	sqlStr := "select user_id, username, password from user where username = ?"

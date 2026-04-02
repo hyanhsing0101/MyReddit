@@ -21,3 +21,5 @@ myreddit.exe
 
 .data/
 .postman/
+data/
+.DS_Store
