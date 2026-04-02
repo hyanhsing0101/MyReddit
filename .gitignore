@@ -2,13 +2,14 @@
 .idea/
 *.iml
 .vscode/
+.DS_Store
 
 # Logs (your program writes myreddit.log)
 *.log
 myreddit.log
 
 # Secrets / local config
-conf/config.yaml
+backend/conf/config.yaml
 config.yaml
 
 # Local env files (if you add them later)
@@ -18,8 +19,17 @@ config.yaml
 # Built binary (if generated)
 myreddit
 myreddit.exe
+backend/myreddit
+backend/myreddit.exe
 
+# Local tooling / generated data
 .data/
 .postman/
-data/
-.DS_Store
+
+# Docker local data (infra)
+infra/docker/data/
+
+# Frontend deps/build artifacts
+frontend/node_modules/
+frontend/.next/
+frontend/out/
