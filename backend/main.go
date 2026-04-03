@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"myreddit/controller"
-	"myreddit/dao/mysql"
+	"myreddit/dao/postgres"
 	"myreddit/dao/redis"
 	"myreddit/logger"
 	"myreddit/pkg/snowflake"
@@ -35,11 +35,11 @@ func main() {
 	}(zap.L())
 	zap.L().Debug("init logger success")
 
-	if err := mysql.Init(settings.Conf.MySQLConfig); err != nil {
-		fmt.Printf("init mysql failed, err:%v\n", err)
+	if err := postgres.Init(settings.Conf.PostgresConfig); err != nil {
+		fmt.Printf("init postgres failed, err:%v\n", err)
 		return
 	}
-	defer mysql.Close()
+	defer postgres.Close()
 
 	if err := redis.Init(settings.Conf.RedisConfig); err != nil {
 		fmt.Printf("init redis failed, err:%v\n", err)

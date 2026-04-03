@@ -16,9 +16,9 @@ type AppConfig struct {
 	StartTime    string `mapstructure:"start_time"`
 	MachineID    int64  `mapstructure:"machine_id"`
 	Port         int    `mapstructure:"port"`
-	*LogConfig   `mapstructure:"log"`
-	*MySQLConfig `mapstructure:"mysql"`
-	*RedisConfig `mapstructure:"redis"`
+	*LogConfig       `mapstructure:"log"`
+	*PostgresConfig  `mapstructure:"postgres"`
+	*RedisConfig     `mapstructure:"redis"`
 }
 
 type LogConfig struct {
@@ -29,12 +29,13 @@ type LogConfig struct {
 	MaxBackups int    `mapstructure:"max_backups"`
 }
 
-type MySQLConfig struct {
+type PostgresConfig struct {
 	Host         string `mapstructure:"host"`
 	User         string `mapstructure:"user"`
 	Password     string `mapstructure:"password"`
 	DbName       string `mapstructure:"db_name"`
 	Port         int    `mapstructure:"port"`
+	SslMode      string `mapstructure:"ssl_mode"`
 	MaxOpenConns int    `mapstructure:"max_open_conns"`
 	MaxIdleConns int    `mapstructure:"max_idle_conns"`
 }

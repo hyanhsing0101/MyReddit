@@ -1,4 +1,4 @@
-package mysql
+package postgres
 
 import (
 	"crypto/md5"
@@ -17,7 +17,7 @@ var (
 )
 
 func CheckUserExist(username string) (err error) {
-	sqlStr := "select count(user_id) from user where username = ?"
+	sqlStr := `select count(user_id) from "user" where username = $1`
 	var count int
 	if err = db.Get(&count, sqlStr, username); err != nil {
 		return err
@@ -29,7 +29,7 @@ func CheckUserExist(username string) (err error) {
 }
 
 func CheckUserByIDAndName(userID int64, username string) (bool, error) {
-	sqlStr := "select count(user_id) from user where user_id = ? and username = ?"
+	sqlStr := `select count(user_id) from "user" where user_id = $1 and username = $2`
 	var count int
 	if err := db.Get(&count, sqlStr, userID, username); err != nil {
 		return false, err
@@ -39,7 +39,7 @@ func CheckUserByIDAndName(userID int64, username string) (bool, error) {
 
 func Login(user *models.User) (err error) {
 	oPassword := user.Password
-	sqlStr := "select user_id, username, password from user where username = ?"
+	sqlStr := `select user_id, username, password from "user" where username = $1`
 	err = db.Get(user, sqlStr, user.Username)
 	if err == sql.ErrNoRows {
 		return ErrorUserNotExist
@@ -55,10 +55,8 @@ func Login(user *models.User) (err error) {
 }
 
 func InsertUser(user *models.User) error {
-	// 对密码进行加密
 	password := encryptPassword(user.Password, user.Username)
-	// 执行 SQL 语句入库
-	sqlStr := "insert into user (user_id, username, password) values (?, ?, ?)"
+	sqlStr := `insert into "user" (user_id, username, password) values ($1, $2, $3)`
 	if _, err := db.Exec(sqlStr, user.UserID, user.Username, password); err != nil {
 		return err
 	}

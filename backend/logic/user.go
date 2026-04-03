@@ -2,7 +2,7 @@ package logic
 
 import (
 	"errors"
-	"myreddit/dao/mysql"
+	"myreddit/dao/postgres"
 	redisDao "myreddit/dao/redis"
 	"myreddit/models"
 	"myreddit/pkg/jwt"
@@ -10,7 +10,7 @@ import (
 )
 
 func SignUp(p *models.ParamSignUp) (err error) {
-	if err = mysql.CheckUserExist(p.Username); err != nil {
+	if err = postgres.CheckUserExist(p.Username); err != nil {
 		return err
 	}
 
@@ -22,7 +22,7 @@ func SignUp(p *models.ParamSignUp) (err error) {
 		Password: p.Password,
 	}
 
-	if err := mysql.InsertUser(&u); err != nil {
+	if err := postgres.InsertUser(&u); err != nil {
 		return err
 	}
 	return nil
@@ -35,7 +35,7 @@ func Login(p *models.ParamLogin) (models.TokenPair, error) {
 		Username: p.Username,
 		Password: p.Password,
 	}
-	if err := mysql.Login(user); err != nil {
+	if err := postgres.Login(user); err != nil {
 		return models.TokenPair{}, err
 	}
 
@@ -73,7 +73,7 @@ func RefreshToken(refreshToken string) (models.TokenPair, error) {
 	}
 
 	// 可选但建议：refresh 绑定的用户是否仍存在
-	ok, err := mysql.CheckUserByIDAndName(mc.UserID, mc.Username)
+	ok, err := postgres.CheckUserByIDAndName(mc.UserID, mc.Username)
 	if err != nil || !ok {
 		return models.TokenPair{}, errors.New("user not exist")
 	}

@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"myreddit/controller"
-	"myreddit/dao/mysql"
+	"myreddit/dao/postgres"
 	"myreddit/pkg/jwt"
 	"strings"
 
@@ -38,7 +38,7 @@ func JWTAuthMiddleware() func(c *gin.Context) {
 			return
 		}
 
-		ok, err := mysql.CheckUserByIDAndName(mc.UserID, mc.Username)
+		ok, err := postgres.CheckUserByIDAndName(mc.UserID, mc.Username)
 		if err != nil || !ok {
 			controller.ResponseError(c, controller.CodeInvalidToken)
 			c.Abort()

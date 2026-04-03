@@ -3,7 +3,7 @@ package controller
 import (
 	"errors"
 	"fmt"
-	"myreddit/dao/mysql"
+	"myreddit/dao/postgres"
 	"myreddit/logic"
 	"myreddit/models"
 
@@ -13,7 +13,28 @@ import (
 )
 
 func SignUpHandler(c *gin.Context) {
-	// ...不变...
+	p := new(models.ParamSignUp)
+	if err := c.ShouldBindJSON(&p); err != nil {
+		zap.L().Error("SignUp With Invalid Param", zap.Error(err))
+		errs, ok := err.(validator.ValidationErrors)
+		if !ok {
+			ResponseError(c, CodeInvalidParam)
+			return
+		}
+		ResponseErrorWithMsg(c, CodeInvalidParam, errs.Translate(trans))
+		return
+	}
+
+	if err := logic.SignUp(p); err != nil {
+		zap.L().Error("SignUp With Invalid Param", zap.Error(err))
+		if errors.Is(err, postgres.ErrorUserExist) {
+			ResponseError(c, CodeUserExist)
+			return
+		}
+		ResponseError(c, CodeServerBusy)
+		return
+	}
+	ResponseSuccess(c, nil)
 }
 
 func LoginHandler(c *gin.Context) {
@@ -34,7 +55,7 @@ func LoginHandler(c *gin.Context) {
 	tokenPair, err := logic.Login(p)
 	if err != nil {
 		zap.L().Error("Login With Invalid Param", zap.Error(err), zap.String("username", p.Username))
-		if errors.Is(err, mysql.ErrorUserNotExist) {
+		if errors.Is(err, postgres.ErrorUserNotExist) {
 			ResponseError(c, CodeUserNotExist)
 			return
 		}

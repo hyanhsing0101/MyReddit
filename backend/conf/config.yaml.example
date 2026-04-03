@@ -12,12 +12,13 @@ log:
   max_age: 30
   max_backups: 7
 
-mysql:
+postgres:
   host: "127.0.0.1"
-  port: 3306
+  port: 5432
   user: ""
   password: ""
   db_name: ""
+  ssl_mode: "disable"
   max_open_conns: 20
   max_idle_conns: 10
 
