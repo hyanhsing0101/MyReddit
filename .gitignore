@@ -15,6 +15,7 @@ config.yaml
 # Local env files (if you add them later)
 .env
 *.env
+frontend/.env.local
 
 # Built binary (if generated)
 myreddit
