@@ -54,6 +54,21 @@ export async function apiLogin(payload: {
   return parseJson(res);
 }
 
+export async function apiCreatePost(
+  accessToken: string,
+  payload: { title: string; content: string },
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/post`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  return parseJson<null>(res);
+}
+
 export async function apiPing(accessToken: string): Promise<string> {
   const res = await fetch(`${API_BASE}/ping`, {
     method: "GET",

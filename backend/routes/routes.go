@@ -20,6 +20,8 @@ func SetupRouter(mode string) *gin.Engine {
 
 	r.POST("/refresh", controller.RefreshTokenHandler)
 
+	r.POST("/post", middleware.JWTAuthMiddleware(), controller.CreatePostHandler)
+		
 	r.GET("/ping", middleware.JWTAuthMiddleware(), func(c *gin.Context) {
 		c.String(http.StatusOK, "pong")
 	})

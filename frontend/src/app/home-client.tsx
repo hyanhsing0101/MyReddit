@@ -77,13 +77,21 @@ export default function HomeClient() {
             </Link>
           </>
         ) : (
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="rounded-lg border border-zinc-300 px-4 py-2 dark:border-zinc-600"
-          >
-            退出登录
-          </button>
+          <>
+            <Link
+              href="/post/new"
+              className="rounded-lg bg-zinc-900 px-4 py-2 text-white dark:bg-zinc-100 dark:text-zinc-900"
+            >
+              发帖
+            </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-lg border border-zinc-300 px-4 py-2 dark:border-zinc-600"
+            >
+              退出登录
+            </button>
+          </>
         )}
       </nav>
 

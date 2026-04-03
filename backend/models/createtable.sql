@@ -1,4 +1,3 @@
--- PostgreSQL: "user" 为保留关键字，建表与查询需使用双引号
 CREATE TABLE IF NOT EXISTS "user" (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
@@ -11,3 +10,14 @@ CREATE TABLE IF NOT EXISTS "user" (
     CONSTRAINT user_username_unique UNIQUE (username),
     CONSTRAINT user_user_id_unique UNIQUE (user_id)
 );
+
+CREATE TABLE IF NOT EXISTS "post" (
+    id BIGSERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    author_id BIGINT,
+    create_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT post_author_id_foreign FOREIGN KEY (author_id) REFERENCES "user" (user_id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_post_author_id ON "post" (author_id);
