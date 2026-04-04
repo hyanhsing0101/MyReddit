@@ -1,13 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { API_SUCCESS_CODE, apiCreatePost, apiErrorMessage } from "@/lib/api";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import {
+  API_SUCCESS_CODE,
+  apiCreatePost,
+  apiErrorMessage,
+  apiListBoards,
+  type BoardItem,
+} from "@/lib/api";
 import { getAccessToken } from "@/lib/auth-storage";
 
-export default function NewPostPage() {
+function NewPostForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const boardIdFromUrl = searchParams.get("board_id");
+
+  const [boards, setBoards] = useState<BoardItem[]>([]);
+  const [boardsError, setBoardsError] = useState<string | null>(null);
+  const [boardsLoading, setBoardsLoading] = useState(true);
+  const [boardId, setBoardId] = useState<number | "">("");
+
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +33,45 @@ export default function NewPostPage() {
     setHasToken(!!getAccessToken());
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setBoardsLoading(true);
+      setBoardsError(null);
+      try {
+        const body = await apiListBoards(1, 100, false);
+        if (cancelled) return;
+        if (body.code !== API_SUCCESS_CODE || !body.data) {
+          setBoardsError(apiErrorMessage(body));
+          setBoards([]);
+          return;
+        }
+        setBoards(body.data.list);
+      } catch (e) {
+        if (!cancelled) {
+          setBoardsError(e instanceof Error ? e.message : "加载板块失败");
+          setBoards([]);
+        }
+      } finally {
+        if (!cancelled) setBoardsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (boards.length === 0) return;
+    const qid = boardIdFromUrl ? Number.parseInt(boardIdFromUrl, 10) : NaN;
+    if (Number.isFinite(qid) && boards.some((b) => b.id === qid)) {
+      setBoardId(qid);
+      return;
+    }
+    const general = boards.find((b) => b.slug === "general");
+    setBoardId(general?.id ?? boards[0].id);
+  }, [boards, boardIdFromUrl]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -28,9 +81,17 @@ export default function NewPostPage() {
       setError("请先登录");
       return;
     }
+    if (boardId === "" || typeof boardId !== "number") {
+      setError("请选择板块");
+      return;
+    }
     setLoading(true);
     try {
-      const body = await apiCreatePost(token, { title, content });
+      const body = await apiCreatePost(token, {
+        board_id: boardId,
+        title,
+        content,
+      });
       if (body.code !== API_SUCCESS_CODE) {
         setError(apiErrorMessage(body));
         return;
@@ -87,7 +148,43 @@ export default function NewPostPage() {
         </button>
       </div>
 
+      {boardsLoading ? (
+        <p className="mb-4 text-sm text-zinc-500">加载板块列表…</p>
+      ) : boardsError ? (
+        <p className="mb-4 text-sm text-red-600 dark:text-red-400">
+          {boardsError}
+        </p>
+      ) : boards.length === 0 ? (
+        <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
+          没有可选板块，请先
+          <Link href="/boards/new" className="mx-1 underline">
+            创建板块
+          </Link>
+          。
+        </p>
+      ) : null}
+
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="text-zinc-600 dark:text-zinc-400">板块</span>
+          <select
+            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-600 dark:bg-zinc-900"
+            value={boardId === "" ? "" : String(boardId)}
+            onChange={(e) => {
+              const v = e.target.value;
+              setBoardId(v === "" ? "" : Number.parseInt(v, 10));
+            }}
+            required
+            disabled={boards.length === 0 || boardsLoading}
+          >
+            {boards.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name} ({b.slug})
+                {b.is_system_sink ? " · 系统" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-zinc-600 dark:text-zinc-400">标题</span>
           <input
@@ -118,12 +215,26 @@ export default function NewPostPage() {
         ) : null}
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || boards.length === 0}
           className="rounded-lg bg-zinc-900 py-2.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
         >
           {loading ? "提交中…" : "发布"}
         </button>
       </form>
     </div>
+  );
+}
+
+export default function NewPostPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-2xl px-4 py-16 text-sm text-zinc-500">
+          加载中…
+        </div>
+      }
+    >
+      <NewPostForm />
+    </Suspense>
   );
 }

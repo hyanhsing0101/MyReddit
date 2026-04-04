@@ -189,6 +189,17 @@ export default function HomeClient() {
                   {previewText(post.content)}
                 </p>
                 <p className="mt-2 text-xs text-zinc-500">
+                  {post.board_slug ? (
+                    <>
+                      <Link
+                        href={`/boards/${encodeURIComponent(post.board_slug)}`}
+                        className="text-zinc-700 underline dark:text-zinc-300"
+                      >
+                        {post.board_name || post.board_slug}
+                      </Link>
+                      <span> · </span>
+                    </>
+                  ) : null}
                   {post.author_id != null
                     ? `作者 ID ${post.author_id}`
                     : "无主帖"}{" "}

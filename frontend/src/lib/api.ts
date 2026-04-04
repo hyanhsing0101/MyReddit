@@ -58,6 +58,9 @@ export async function apiLogin(payload: {
 
 export type PostItem = {
   id: number;
+  board_id: number;
+  board_slug: string;
+  board_name: string;
   title: string;
   content: string;
   author_id: number | null;
@@ -75,11 +78,15 @@ export type PostListPayload = {
 export async function apiListPosts(
   page = 1,
   pageSize = 10,
+  boardId?: number,
 ): Promise<ApiResponse<PostListPayload>> {
   const q = new URLSearchParams({
     page: String(page),
     page_size: String(pageSize),
   });
+  if (boardId != null && boardId >= 1) {
+    q.set("board_id", String(boardId));
+  }
   const res = await fetch(`${API_BASE}/posts?${q.toString()}`);
   return parseJson<PostListPayload>(res);
 }
@@ -93,7 +100,7 @@ export async function apiGetPost(
 
 export async function apiCreatePost(
   accessToken: string,
-  payload: { title: string; content: string },
+  payload: { board_id: number; title: string; content: string },
 ): Promise<ApiResponse<null>> {
   const res = await fetch(`${API_BASE}/post`, {
     method: "POST",

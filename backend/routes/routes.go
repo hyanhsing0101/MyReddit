@@ -9,25 +9,49 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// SetupRouter 注册 HTTP 路由。
+// Postman 通用：环境变量 baseUrl=http://127.0.0.1:8081（以实际服务地址为准）；POST JSON 接口在 Headers 加 Content-Type: application/json；标「Bearer」的接口在 Authorization 选 Bearer Token，填登录返回的 access_token。
 func SetupRouter(mode string) *gin.Engine {
 	r := gin.New()
 	r.Use(logger.GinLogger(), logger.GinRecovery(true))
 	r.Use(middleware.CORS())
 
+	// 功能：新用户注册。
+	// Postman：POST {{baseUrl}}/signup · Body raw JSON：{"username":"alice","password":"yourpass","re_password":"yourpass"}。
 	r.POST("/signup", controller.SignUpHandler)
+	// 功能：登录，返回 access_token / refresh_token。
+	// Postman：POST {{baseUrl}}/login · Body raw JSON：{"username":"alice","password":"yourpass"}。
 	r.POST("/login", controller.LoginHandler)
 
+	// 功能：用 refresh_token 换新 access_token（与 refresh_token 对）。
+	// Postman：POST {{baseUrl}}/refresh · Body raw JSON：{"refresh_token":"<login 返回的 refresh_token>"}。
 	r.POST("/refresh", controller.RefreshTokenHandler)
 
+	// 功能：在指定板块发帖（不可发往系统归档板）。
+	// Postman：POST {{baseUrl}}/post · Bearer · Body raw JSON：{"board_id":1,"title":"标题","content":"正文"}。
 	r.POST("/post", middleware.JWTAuthMiddleware(), controller.CreatePostHandler)
+	// 功能：按 id 查帖子详情（含 board_id、board_slug、board_name）。
+	// Postman：GET {{baseUrl}}/posts/1（把 1 换成帖子 id）。
 	r.GET("/posts/:id", controller.GetPostHandler)
+	// 功能：分页帖子列表；可选 board_id 只拉该板帖子。
+	// Postman：GET {{baseUrl}}/posts?page=1&page_size=10 · 可选 &board_id=1。
 	r.GET("/posts", controller.ListPostHandler)
 
+	// 功能：按 slug 查板块详情。
+	// Postman：GET {{baseUrl}}/boards/slug/general（把 general 换成板块 slug）。
 	r.GET("/boards/slug/:slug", controller.GetBoardBySlugHandler)
+	// 功能：按数字 id 查板块详情。
+	// Postman：GET {{baseUrl}}/boards/1（把 1 换成板块 id）。
 	r.GET("/boards/:id", controller.GetBoardByIDHandler)
+	// 功能：分页板块列表；include_system_sink=true 时包含系统归档板 _archived。
+	// Postman：GET {{baseUrl}}/boards?page=1&page_size=20 · 可选 &include_system_sink=true。
 	r.GET("/boards", controller.ListBoardsHandler)
+	// 功能：登录用户创建板块（slug 小写+数字+下划线，且不能占用保留名 _archived）。
+	// Postman：POST {{baseUrl}}/boards · Bearer · Body raw JSON：{"slug":"my_board","name":"展示名","description":"可选"}。
 	r.POST("/boards", middleware.JWTAuthMiddleware(), controller.CreateBoardHandler)
 
+	// 功能：鉴权探活，成功返回纯文本 pong。
+	// Postman：GET {{baseUrl}}/ping · Bearer（任意有效 access_token）。
 	r.GET("/ping", middleware.JWTAuthMiddleware(), func(c *gin.Context) {
 		c.String(http.StatusOK, "pong")
 	})

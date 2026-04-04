@@ -32,7 +32,15 @@ func CreatePostHandler(c *gin.Context) {
 	}
 
 	if err := logic.CreatePost(p, userID); err != nil {
-		zap.L().Error("Create Post With Invalid Param", zap.Error(err))
+		if errors.Is(err, postgres.ErrorBoardNotExist) {
+			ResponseError(c, CodeBoardNotExist)
+			return
+		}
+		if errors.Is(err, logic.ErrCannotPostToSystemBoard) {
+			ResponseErrorWithMsg(c, CodeInvalidParam, err.Error())
+			return
+		}
+		zap.L().Error("Create Post Failed", zap.Error(err))
 		ResponseError(c, CodeServerBusy)
 		return
 	}
@@ -48,6 +56,14 @@ func ListPostHandler(c *gin.Context) {
 	}
 	data, err := logic.ListPost(p)
 	if err != nil {
+		if errors.Is(err, postgres.ErrorBoardNotExist) {
+			ResponseError(c, CodeBoardNotExist)
+			return
+		}
+		if errors.Is(err, logic.ErrInvalidBoardID) {
+			ResponseError(c, CodeInvalidParam)
+			return
+		}
 		zap.L().Error("List Post Failed", zap.Error(err))
 		ResponseError(c, CodeServerBusy)
 		return

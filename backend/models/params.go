@@ -21,13 +21,15 @@ type TokenPair struct {
 }
 
 type ParamCreatePost struct {
+	BoardID int64  `json:"board_id" binding:"required"`
 	Title   string `json:"title" binding:"required"`
 	Content string `json:"content" binding:"required"`
 }
 
 type ParamPostList struct {
-	Page     int `form:"page"`
-	PageSize int `form:"page_size"`
+	Page     int    `form:"page"`
+	PageSize int    `form:"page_size"`
+	BoardID  *int64 `form:"board_id"`
 }
 
 func (p *ParamPostList) Normalize() {

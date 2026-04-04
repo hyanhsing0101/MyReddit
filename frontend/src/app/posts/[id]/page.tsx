@@ -95,6 +95,18 @@ export default function PostDetailPage() {
             {post.title}
           </h1>
           <p className="mt-3 text-xs text-zinc-500">
+            {post.board_slug ? (
+              <>
+                板块：{" "}
+                <Link
+                  href={`/boards/${encodeURIComponent(post.board_slug)}`}
+                  className="underline"
+                >
+                  {post.board_name || post.board_slug}
+                </Link>
+                <span> · </span>
+              </>
+            ) : null}
             {post.author_id != null
               ? `作者 ID ${post.author_id}`
               : "无主帖"}{" "}
