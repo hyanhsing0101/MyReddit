@@ -41,3 +41,27 @@ func (p *ParamPostList) Normalize() {
 		p.PageSize = 100
 	}
 }
+
+type ParamBoardList struct {
+	Page               int  `form:"page"`
+	PageSize           int  `form:"page_size"`
+	IncludeSystemSink  bool `form:"include_system_sink"`
+}
+
+func (p *ParamBoardList) Normalize() {
+	if p.Page < 1 {
+		p.Page = 1
+	}
+	if p.PageSize < 1 {
+		p.PageSize = 20
+	}
+	if p.PageSize > 100 {
+		p.PageSize = 100
+	}
+}
+
+type ParamCreateBoard struct {
+	Slug        string `json:"slug" binding:"required"`
+	Name        string `json:"name" binding:"required"`
+	Description string `json:"description"`
+}

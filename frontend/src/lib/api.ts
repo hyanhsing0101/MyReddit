@@ -106,6 +106,62 @@ export async function apiCreatePost(
   return parseJson<null>(res);
 }
 
+export type BoardItem = {
+  id: number;
+  slug: string;
+  name: string;
+  description: string;
+  created_by: number | null;
+  is_system_sink: boolean;
+  create_time: string;
+  update_time: string;
+};
+
+export type BoardListPayload = {
+  list: BoardItem[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export async function apiListBoards(
+  page = 1,
+  pageSize = 20,
+  includeSystemSink = false,
+): Promise<ApiResponse<BoardListPayload>> {
+  const q = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  if (includeSystemSink) q.set("include_system_sink", "true");
+  const res = await fetch(`${API_BASE}/boards?${q.toString()}`);
+  return parseJson<BoardListPayload>(res);
+}
+
+export async function apiGetBoardBySlug(
+  slug: string,
+): Promise<ApiResponse<BoardItem>> {
+  const res = await fetch(
+    `${API_BASE}/boards/slug/${encodeURIComponent(slug)}`,
+  );
+  return parseJson<BoardItem>(res);
+}
+
+export async function apiCreateBoard(
+  accessToken: string,
+  payload: { slug: string; name: string; description?: string },
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/boards`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  return parseJson<null>(res);
+}
+
 export async function apiPing(accessToken: string): Promise<string> {
   const res = await fetch(`${API_BASE}/ping`, {
     method: "GET",

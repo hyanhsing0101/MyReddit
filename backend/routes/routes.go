@@ -10,7 +10,6 @@ import (
 )
 
 func SetupRouter(mode string) *gin.Engine {
-	// ...不变...
 	r := gin.New()
 	r.Use(logger.GinLogger(), logger.GinRecovery(true))
 	r.Use(middleware.CORS())
@@ -23,6 +22,11 @@ func SetupRouter(mode string) *gin.Engine {
 	r.POST("/post", middleware.JWTAuthMiddleware(), controller.CreatePostHandler)
 	r.GET("/posts/:id", controller.GetPostHandler)
 	r.GET("/posts", controller.ListPostHandler)
+
+	r.GET("/boards/slug/:slug", controller.GetBoardBySlugHandler)
+	r.GET("/boards/:id", controller.GetBoardByIDHandler)
+	r.GET("/boards", controller.ListBoardsHandler)
+	r.POST("/boards", middleware.JWTAuthMiddleware(), controller.CreateBoardHandler)
 
 	r.GET("/ping", middleware.JWTAuthMiddleware(), func(c *gin.Context) {
 		c.String(http.StatusOK, "pong")
