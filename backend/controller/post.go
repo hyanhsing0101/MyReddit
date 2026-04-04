@@ -1,8 +1,11 @@
 package controller
 
 import (
-	"myreddit/models"
+	"errors"
+	"myreddit/dao/postgres"
 	"myreddit/logic"
+	"myreddit/models"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -34,4 +37,41 @@ func CreatePostHandler(c *gin.Context) {
 		return
 	}
 	ResponseSuccess(c, nil)
+}
+
+func ListPostHandler(c *gin.Context) {
+	p := new(models.ParamPostList)
+	if err := c.ShouldBindQuery(p); err != nil {
+		zap.L().Error("List Post With Invalid Param", zap.Error(err))
+		ResponseError(c, CodeInvalidParam)
+		return
+	}
+	data, err := logic.ListPost(p)
+	if err != nil {
+		zap.L().Error("List Post Failed", zap.Error(err))
+		ResponseError(c, CodeServerBusy)
+		return
+	}
+	ResponseSuccess(c, data)
+}
+
+func GetPostHandler(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id < 1 {
+		zap.L().Error("Get Post With Invalid Param", zap.String("id", idStr))
+		ResponseError(c, CodeInvalidParam)
+		return
+	}
+	data, err := logic.GetPost(id)
+	if err != nil {
+		if errors.Is(err, postgres.ErrorPostNotExist) {
+			ResponseError(c, CodePostNotExist)
+			return
+		}
+		zap.L().Error("Get Post Failed", zap.Error(err), zap.Int64("id", id))
+		ResponseError(c, CodeServerBusy)
+		return
+	}
+	ResponseSuccess(c, data)
 }

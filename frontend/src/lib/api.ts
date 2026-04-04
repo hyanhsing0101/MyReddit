@@ -2,6 +2,8 @@ const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8081";
 
 export const API_SUCCESS_CODE = 1000;
+/** 与后端 controller.CodePostNotExist 一致 */
+export const API_POST_NOT_EXIST_CODE = 1008;
 
 export type ApiResponse<T> = {
   code: number;
@@ -52,6 +54,41 @@ export async function apiLogin(payload: {
     body: JSON.stringify(payload),
   });
   return parseJson(res);
+}
+
+export type PostItem = {
+  id: number;
+  title: string;
+  content: string;
+  author_id: number | null;
+  create_time: string;
+  update_time: string;
+};
+
+export type PostListPayload = {
+  list: PostItem[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export async function apiListPosts(
+  page = 1,
+  pageSize = 10,
+): Promise<ApiResponse<PostListPayload>> {
+  const q = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  const res = await fetch(`${API_BASE}/posts?${q.toString()}`);
+  return parseJson<PostListPayload>(res);
+}
+
+export async function apiGetPost(
+  id: number,
+): Promise<ApiResponse<PostItem>> {
+  const res = await fetch(`${API_BASE}/posts/${id}`);
+  return parseJson<PostItem>(res);
 }
 
 export async function apiCreatePost(

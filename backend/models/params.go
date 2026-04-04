@@ -24,3 +24,20 @@ type ParamCreatePost struct {
 	Title   string `json:"title" binding:"required"`
 	Content string `json:"content" binding:"required"`
 }
+
+type ParamPostList struct {
+	Page     int `form:"page"`
+	PageSize int `form:"page_size"`
+}
+
+func (p *ParamPostList) Normalize() {
+	if p.Page < 1 {
+		p.Page = 1
+	}
+	if p.PageSize < 1 {
+		p.PageSize = 10
+	}
+	if p.PageSize > 100 {
+		p.PageSize = 100
+	}
+}
