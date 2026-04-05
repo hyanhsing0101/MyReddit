@@ -11,6 +11,7 @@ import (
 var (
 	ErrCannotPostToSystemBoard = errors.New("cannot post to system board")
 	ErrInvalidBoardID          = errors.New("invalid board id")
+	ErrDeletePostForbidden     = errors.New("delete post forbidden")
 )
 
 func CreatePost(p *models.ParamCreatePost, userID int64) error {
@@ -75,4 +76,29 @@ func GetPost(id int64) (*models.PostView, error) {
 	}
 	v := models.PostToView(*post)
 	return &v, nil
+}
+
+// DeletePost 软删：作者本人或站点管理员；无主帖仅管理员可删；已软删返回 post not exist
+func DeletePost(postID, operatorUserID int64) error {
+	post, err := postgres.GetPostByIDIncludingDeleted(postID)
+	if err != nil {
+		return err
+	}
+	if post.DeletedAt.Valid {
+		return postgres.ErrorPostNotExist
+	}
+	admin, err := postgres.IsSiteAdmin(operatorUserID)
+	if err != nil {
+		return err
+	}
+	if admin {
+		return postgres.SoftDeletePost(postID, time.Now())
+	}
+	if !post.AuthorID.Valid {
+		return ErrDeletePostForbidden
+	}
+	if post.AuthorID.Int64 != operatorUserID {
+		return ErrDeletePostForbidden
+	}
+	return postgres.SoftDeletePost(postID, time.Now())
 }

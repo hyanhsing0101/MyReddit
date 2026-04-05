@@ -70,3 +70,25 @@ func encryptPassword(opassword string, salt string) string {
 	h.Write([]byte(opassword))
 	return hex.EncodeToString(h.Sum(nil))
 }
+
+// IsSiteAdmin 判断用户是否为站长
+func IsSiteAdmin(userID int64) (bool, error) {
+	var admin bool
+	sqlStr := `select coalesce(is_site_admin, false) from "user" where user_id = $1`
+	err := db.Get(&admin, sqlStr, userID)
+	if err != nil {
+		return false, err
+	}
+	return admin, nil
+}
+
+// GetUsernameByUserID 获取用户名
+func GetUsernameByUserID(userID int64) (string, error) {
+	var username string
+	sqlStr := `select username from "user" where user_id = $1`
+	err := db.Get(&username, sqlStr, userID)
+	if err != nil {
+		return "", err
+	}
+	return username, nil
+}

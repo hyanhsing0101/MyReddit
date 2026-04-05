@@ -4,6 +4,8 @@ const API_BASE =
 export const API_SUCCESS_CODE = 1000;
 /** 与后端 controller.CodePostNotExist 一致 */
 export const API_POST_NOT_EXIST_CODE = 1008;
+/** 与后端 controller.CodeForbidden 一致 */
+export const API_FORBIDDEN_CODE = 1011;
 
 export type ApiResponse<T> = {
   code: number;
@@ -96,6 +98,80 @@ export async function apiGetPost(
 ): Promise<ApiResponse<PostItem>> {
   const res = await fetch(`${API_BASE}/posts/${id}`);
   return parseJson<PostItem>(res);
+}
+
+export type CommentItem = {
+  id: number;
+  post_id: number;
+  author_id: number | null;
+  author_username: string;
+  parent_id: number | null;
+  content: string;
+  create_time: string;
+  update_time: string;
+};
+
+export type CommentListPayload = {
+  list: CommentItem[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export async function apiListComments(
+  postId: number,
+  page = 1,
+  pageSize = 100,
+): Promise<ApiResponse<CommentListPayload>> {
+  const q = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  const res = await fetch(`${API_BASE}/posts/${postId}/comments?${q.toString()}`);
+  return parseJson<CommentListPayload>(res);
+}
+
+export async function apiCreateComment(
+  accessToken: string,
+  postId: number,
+  payload: { content: string; parent_id?: number },
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/posts/${postId}/comments`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  return parseJson<null>(res);
+}
+
+export async function apiDeletePost(
+  accessToken: string,
+  postId: number,
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/posts/${postId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<null>(res);
+}
+
+export type MePermissionsPayload = {
+  user_id: number;
+  username: string;
+  roles: string[];
+  is_site_admin: boolean;
+};
+
+export async function apiMePermissions(
+  accessToken: string,
+): Promise<ApiResponse<MePermissionsPayload>> {
+  const res = await fetch(`${API_BASE}/me/permissions`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<MePermissionsPayload>(res);
 }
 
 export async function apiCreatePost(

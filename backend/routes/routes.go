@@ -30,9 +30,18 @@ func SetupRouter(mode string) *gin.Engine {
 	// 功能：在指定板块发帖（不可发往系统归档板）。
 	// Postman：POST {{baseUrl}}/post · Bearer · Body raw JSON：{"board_id":1,"title":"标题","content":"正文"}。
 	r.POST("/post", middleware.JWTAuthMiddleware(), controller.CreatePostHandler)
-	// 功能：按 id 查帖子详情（含 board_id、board_slug、board_name）。
+	// 功能：分页拉取某帖评论（未软删、按时间正序）；帖子不存在或已删返回与详情一致。
+	// Postman：GET {{baseUrl}}/posts/1/comments?page=1&page_size=50。
+	r.GET("/posts/:id/comments", controller.ListCommentsHandler)
+	// 功能：登录用户发表评论；JSON 可选 parent_id 表示回复该条评论（须同属本帖）。
+	// Postman：POST {{baseUrl}}/posts/1/comments · Bearer · Body：{"content":"正文","parent_id":2}（parent_id 可省略）。
+	r.POST("/posts/:id/comments", middleware.JWTAuthMiddleware(), controller.CreateCommentHandler)
+	// 功能：按 id 查帖子详情（含 board_id、board_slug、board_name）；已软删的帖子对所有人不可见。
 	// Postman：GET {{baseUrl}}/posts/1（把 1 换成帖子 id）。
 	r.GET("/posts/:id", controller.GetPostHandler)
+	// 功能：软删帖子；作者可删自己的帖，站点管理员可删任意帖；无主帖仅管理员可删。
+	// Postman：DELETE {{baseUrl}}/posts/1 · Bearer。
+	r.DELETE("/posts/:id", middleware.JWTAuthMiddleware(), controller.DeletePostHandler)
 	// 功能：分页帖子列表；可选 board_id 只拉该板帖子。
 	// Postman：GET {{baseUrl}}/posts?page=1&page_size=10 · 可选 &board_id=1。
 	r.GET("/posts", controller.ListPostHandler)
@@ -50,6 +59,14 @@ func SetupRouter(mode string) *gin.Engine {
 	// Postman：POST {{baseUrl}}/boards · Bearer · Body raw JSON：{"slug":"my_board","name":"展示名","description":"可选"}。
 	r.POST("/boards", middleware.JWTAuthMiddleware(), controller.CreateBoardHandler)
 
+	// 任意登录用户：查看自己的权限
+	r.GET("/me/permissions", middleware.JWTAuthMiddleware(), controller.MePermissionsHandler)
+	// 测试：仅登录
+	r.GET("/debug/auth/any", middleware.JWTAuthMiddleware(), controller.DebugAuthAnyHandler)
+	// 测试：仅站点管理员（注意中间件顺序）
+	r.GET("/debug/auth/admin", middleware.JWTAuthMiddleware(), middleware.RequireSiteAdmin(), controller.DebugAuthAdminHandler)
+
+	
 	// 功能：鉴权探活，成功返回纯文本 pong。
 	// Postman：GET {{baseUrl}}/ping · Bearer（任意有效 access_token）。
 	r.GET("/ping", middleware.JWTAuthMiddleware(), func(c *gin.Context) {

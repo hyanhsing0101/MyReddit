@@ -112,3 +112,24 @@ func RefreshToken(refreshToken string) (models.TokenPair, error) {
 		RefreshToken: newRefreshToken,
 	}, nil
 }
+
+func MePermissions(userID int64) (*models.MePermissionsView, error) {
+	admin, err := postgres.IsSiteAdmin(userID)
+	if err != nil {
+		return nil, err
+	}
+	username, err := postgres.GetUsernameByUserID(userID)
+	if err != nil {
+		return nil, err
+	}
+	roles := []string{"user"}
+	if admin {
+		roles = append(roles, "admin")
+	}
+	return &models.MePermissionsView{
+		UserID:      userID,
+		Username:    username,
+		Roles:       roles,
+		IsSiteAdmin: admin,
+	}, nil
+}

@@ -1,5 +1,9 @@
 package models
 
+// =============================================================================
+// 用户 / 鉴权（注册、登录、刷新 Token）
+// =============================================================================
+
 type ParamSignUp struct {
 	Username   string `json:"username" binding:"required"`
 	Password   string `json:"password" binding:"required"`
@@ -19,6 +23,10 @@ type TokenPair struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 }
+
+// =============================================================================
+// 帖子
+// =============================================================================
 
 type ParamCreatePost struct {
 	BoardID int64  `json:"board_id" binding:"required"`
@@ -44,10 +52,14 @@ func (p *ParamPostList) Normalize() {
 	}
 }
 
+// =============================================================================
+// 板块
+// =============================================================================
+
 type ParamBoardList struct {
-	Page               int  `form:"page"`
-	PageSize           int  `form:"page_size"`
-	IncludeSystemSink  bool `form:"include_system_sink"`
+	Page              int  `form:"page"`
+	PageSize          int  `form:"page_size"`
+	IncludeSystemSink bool `form:"include_system_sink"`
 }
 
 func (p *ParamBoardList) Normalize() {
@@ -66,4 +78,30 @@ type ParamCreateBoard struct {
 	Slug        string `json:"slug" binding:"required"`
 	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
+}
+
+// =============================================================================
+// 评论
+// =============================================================================
+
+type ParamCreateComment struct {
+	Content  string `json:"content" binding:"required"`
+	ParentID *int64 `json:"parent_id"`
+}
+
+type ParamCommentList struct {
+	Page     int `form:"page"`
+	PageSize int `form:"page_size"`
+}
+
+func (p *ParamCommentList) Normalize() {
+	if p.Page < 1 {
+		p.Page = 1
+	}
+	if p.PageSize < 1 {
+		p.PageSize = 50
+	}
+	if p.PageSize > 200 {
+		p.PageSize = 200
+	}
 }

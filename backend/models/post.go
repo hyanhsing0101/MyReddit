@@ -11,6 +11,7 @@ type Post struct {
 	Title      string         `db:"title"`
 	Content    string         `db:"content"`
 	AuthorID   sql.NullInt64  `db:"author_id"`
+	DeletedAt  sql.NullTime   `db:"deleted_at"`
 	CreateTime time.Time      `db:"create_time"`
 	UpdateTime time.Time      `db:"update_time"`
 	BoardSlug  sql.NullString `db:"board_slug"`

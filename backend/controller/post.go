@@ -91,3 +91,32 @@ func GetPostHandler(c *gin.Context) {
 	}
 	ResponseSuccess(c, data)
 }
+
+func DeletePostHandler(c *gin.Context) {
+	userID, err := GetCurrentUser(c)
+	if err != nil {
+		ResponseError(c, CodeNeedLogin)
+		return
+	}
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id < 1 {
+		zap.L().Error("Delete Post With Invalid Param", zap.String("id", idStr))
+		ResponseError(c, CodeInvalidParam)
+		return
+	}
+	if err := logic.DeletePost(id, userID); err != nil {
+		if errors.Is(err, postgres.ErrorPostNotExist) {
+			ResponseError(c, CodePostNotExist)
+			return
+		}
+		if errors.Is(err, logic.ErrDeletePostForbidden) {
+			ResponseError(c, CodeForbidden)
+			return
+		}
+		zap.L().Error("Delete Post Failed", zap.Error(err), zap.Int64("id", id))
+		ResponseError(c, CodeServerBusy)
+		return
+	}
+	ResponseSuccess(c, nil)
+}
