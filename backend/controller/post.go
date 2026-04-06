@@ -40,6 +40,14 @@ func CreatePostHandler(c *gin.Context) {
 			ResponseErrorWithMsg(c, CodeInvalidParam, err.Error())
 			return
 		}
+		if errors.Is(err, postgres.ErrorTagNotExist) {
+			ResponseErrorWithMsg(c, CodeInvalidParam, err.Error())
+			return
+		}
+		if errors.Is(err, logic.ErrTagCountExceedsMaxLimit) {
+			ResponseErrorWithMsg(c, CodeInvalidParam, err.Error())
+			return
+		}
 		zap.L().Error("Create Post Failed", zap.Error(err))
 		ResponseError(c, CodeServerBusy)
 		return

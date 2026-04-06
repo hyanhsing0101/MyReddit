@@ -2,6 +2,8 @@
 -- 注意：会删除全部用户、板块、帖子、评论
 
 DROP TABLE IF EXISTS "comment";
+DROP TABLE IF EXISTS "post_tag";
+DROP TABLE IF EXISTS "tag";
 DROP TABLE IF EXISTS "post";
 DROP TABLE IF EXISTS "board";
 DROP TABLE IF EXISTS "user";
@@ -60,6 +62,29 @@ CREATE INDEX idx_post_board_id ON "post" (board_id);
 CREATE INDEX idx_post_board_create_time ON "post" (board_id, create_time DESC);
 CREATE INDEX idx_post_author_id ON "post" (author_id);
 CREATE INDEX idx_post_search_vector ON "post" USING GIN (search_vector) WHERE deleted_at IS NULL;
+
+-- 标签：全站共用
+CREATE TABLE "tag" (
+    id BIGSERIAL PRIMARY KEY,
+    slug VARCHAR(64) NOT NULL,
+    name VARCHAR(64) NOT NULL,
+    description TEXT,
+    create_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT tag_slug_unique UNIQUE (slug)
+);
+CREATE INDEX idx_tag_name ON "tag" (name);
+
+-- 帖子-标签关联（多对多）
+CREATE TABLE "post_tag" (
+    post_id BIGINT NOT NULL,
+    tag_id BIGINT NOT NULL,
+    create_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT post_tag_pk PRIMARY KEY (post_id, tag_id),
+    CONSTRAINT post_tag_post_fk FOREIGN KEY (post_id) REFERENCES "post" (id) ON DELETE CASCADE,
+    CONSTRAINT post_tag_tag_fk FOREIGN KEY (tag_id) REFERENCES "tag" (id) ON DELETE RESTRICT
+);
+CREATE INDEX idx_post_tag_tag_id ON "post_tag" (tag_id);
 
 -- 评论：挂在帖子下；parent_id 为空表示顶层，非空表示回复某条评论（楼中楼）
 CREATE TABLE "comment" (

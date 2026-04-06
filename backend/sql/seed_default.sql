@@ -39,3 +39,23 @@ JOIN "board" b ON b.id = p.board_id
 JOIN "comment" c ON c.post_id = p.id AND c.parent_id IS NULL AND c.author_id = 10001
 WHERE b.slug = 't' AND p.title = 't1'
 LIMIT 1;
+
+-- 全站默认标签
+INSERT INTO "tag" (slug, name, description) VALUES
+    ('discussion', '讨论', '普通讨论类内容'),
+    ('question', '提问', '问题求助'),
+    ('show', '展示', '作品展示')
+ON CONFLICT (slug) DO NOTHING;
+
+-- 给种子帖子打标签：
+-- t1 -> discussion, question
+-- t2 -> discussion, show
+INSERT INTO "post_tag" (post_id, tag_id)
+SELECT p.id, t.id
+FROM "post" p, "tag" t
+WHERE p.title = 't1' AND t.slug IN ('discussion', 'question')
+UNION ALL
+SELECT p.id, t.id
+FROM "post" p, "tag" t
+WHERE p.title = 't2' AND t.slug IN ('discussion', 'show')
+ON CONFLICT (post_id, tag_id) DO NOTHING;

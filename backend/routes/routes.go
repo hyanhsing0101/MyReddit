@@ -46,6 +46,10 @@ func SetupRouter(mode string) *gin.Engine {
 	// Postman：GET {{baseUrl}}/posts?page=1&page_size=10 · 可选 &board_id=1。
 	r.GET("/posts", controller.ListPostHandler)
 
+	// 功能：分页获取全站标签。
+	// Postman：GET {{baseUrl}}/tags?page=1&page_size=50。
+	r.GET("/tags", controller.ListTagsHandler)
+
 	// 功能：按 slug 查板块详情。
 	// Postman：GET {{baseUrl}}/boards/slug/general（把 general 换成板块 slug）。
 	r.GET("/boards/slug/:slug", controller.GetBoardBySlugHandler)

@@ -63,6 +63,7 @@ export type PostItem = {
   board_id: number;
   board_slug: string;
   board_name: string;
+  tags: TagItem[];
   title: string;
   content: string;
   author_id: number | null;
@@ -176,7 +177,7 @@ export async function apiMePermissions(
 
 export async function apiCreatePost(
   accessToken: string,
-  payload: { board_id: number; title: string; content: string },
+  payload: { board_id: number; tag_ids: number[]; title: string; content: string },
 ): Promise<ApiResponse<null>> {
   const res = await fetch(`${API_BASE}/post`, {
     method: "POST",
@@ -198,6 +199,28 @@ export type BoardItem = {
   is_system_sink: boolean;
   create_time: string;
   update_time: string;
+};
+
+export type TagItem = {
+  id: number;
+  slug: string;
+  name: string;
+  description: string;
+  create_time: string;
+  update_time: string;
+};
+
+/** 展示用：优先 name，空则 slug */
+export function tagDisplayLabel(tag: Pick<TagItem, "name" | "slug">): string {
+  const n = tag.name?.trim();
+  return n || tag.slug;
+}
+
+export type TagListPayload = {
+  list: TagItem[];
+  total: number;
+  page: number;
+  page_size: number;
 };
 
 export type BoardListPayload = {
@@ -252,6 +275,18 @@ export async function apiCreateBoard(
     body: JSON.stringify(payload),
   });
   return parseJson<null>(res);
+}
+
+export async function apiListTags(
+  page = 1,
+  pageSize = 50,
+): Promise<ApiResponse<TagListPayload>> {
+  const q = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  const res = await fetch(`${API_BASE}/tags?${q.toString()}`);
+  return parseJson<TagListPayload>(res);
 }
 
 export async function apiSearch(

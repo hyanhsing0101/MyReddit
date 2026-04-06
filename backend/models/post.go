@@ -16,6 +16,7 @@ type Post struct {
 	UpdateTime time.Time      `db:"update_time"`
 	BoardSlug  sql.NullString `db:"board_slug"`
 	BoardName  sql.NullString `db:"board_name"`
+	TagIDs     []int64        `db:"tag_ids"`
 }
 
 // PostView 列表/详情接口返回用，author_id 可空时用 JSON null
@@ -29,6 +30,7 @@ type PostView struct {
 	AuthorID   *int64    `json:"author_id"`
 	CreateTime time.Time `json:"create_time"`
 	UpdateTime time.Time `json:"update_time"`
+	Tags       []Tag     `json:"tags"`
 }
 
 func PostToView(p Post) PostView {

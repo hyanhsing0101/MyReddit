@@ -8,7 +8,10 @@ import {
   apiCreatePost,
   apiErrorMessage,
   apiListBoards,
+  apiListTags,
+  tagDisplayLabel,
   type BoardItem,
+  type TagItem,
 } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth-storage";
 
@@ -21,6 +24,10 @@ function NewPostForm() {
   const [boardsError, setBoardsError] = useState<string | null>(null);
   const [boardsLoading, setBoardsLoading] = useState(true);
   const [boardId, setBoardId] = useState<number | "">("");
+  const [tags, setTags] = useState<TagItem[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [tagsLoading, setTagsLoading] = useState(true);
+  const [tagsError, setTagsError] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -31,6 +38,34 @@ function NewPostForm() {
 
   useEffect(() => {
     setHasToken(!!getAccessToken());
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setTagsLoading(true);
+      setTagsError(null);
+      try {
+        const body = await apiListTags(1, 100);
+        if (cancelled) return;
+        if (body.code !== API_SUCCESS_CODE || !body.data) {
+          setTagsError(apiErrorMessage(body));
+          setTags([]);
+          return;
+        }
+        setTags(body.data.list);
+      } catch (e) {
+        if (!cancelled) {
+          setTagsError(e instanceof Error ? e.message : "加载标签失败");
+          setTags([]);
+        }
+      } finally {
+        if (!cancelled) setTagsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -89,6 +124,7 @@ function NewPostForm() {
     try {
       const body = await apiCreatePost(token, {
         board_id: boardId,
+        tag_ids: selectedTagIds,
         title,
         content,
       });
@@ -99,6 +135,7 @@ function NewPostForm() {
       setOk(true);
       setTitle("");
       setContent("");
+      setSelectedTagIds([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "发布失败");
     } finally {
@@ -163,6 +200,13 @@ function NewPostForm() {
           。
         </p>
       ) : null}
+      {tagsLoading ? (
+        <p className="mb-4 text-sm text-zinc-500">加载标签列表…</p>
+      ) : tagsError ? (
+        <p className="mb-4 text-sm text-red-600 dark:text-red-400">
+          {tagsError}
+        </p>
+      ) : null}
 
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">
@@ -205,6 +249,41 @@ function NewPostForm() {
             rows={12}
           />
         </label>
+        <fieldset className="flex flex-col gap-2 text-sm">
+          <legend className="text-zinc-600 dark:text-zinc-400">标签（最多 5 个）</legend>
+          <div className="flex flex-wrap gap-2">
+            {tags.length === 0 ? (
+              <span className="text-xs text-zinc-500">暂无可选标签</span>
+            ) : (
+              tags.map((tag) => {
+                const checked = selectedTagIds.includes(tag.id);
+                const disabled = !checked && selectedTagIds.length >= 5;
+                return (
+                  <label
+                    key={tag.id}
+                    className="inline-flex items-center gap-1 rounded border border-zinc-300 px-2 py-1 dark:border-zinc-600"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={disabled}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedTagIds((prev) => [...prev, tag.id]);
+                        } else {
+                          setSelectedTagIds((prev) =>
+                            prev.filter((id) => id !== tag.id),
+                          );
+                        }
+                      }}
+                    />
+                    <span>#{tagDisplayLabel(tag)}</span>
+                  </label>
+                );
+              })
+            )}
+          </div>
+        </fieldset>
         {error ? (
           <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
         ) : null}

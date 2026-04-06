@@ -8,6 +8,7 @@ import {
   apiListPosts,
   apiPing,
   apiSearch,
+  tagDisplayLabel,
   type BoardItem,
   type PostItem,
   type SearchScope,
@@ -306,6 +307,18 @@ export default function HomeClient() {
                 <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
                   {previewText(post.content)}
                 </p>
+                {post.tags?.length ? (
+                  <p className="mt-2 flex flex-wrap gap-1 text-xs">
+                    {post.tags.map((tag) => (
+                      <span
+                        key={tag.id}
+                        className="rounded bg-zinc-200 px-2 py-0.5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                      >
+                        #{tagDisplayLabel(tag)}
+                      </span>
+                    ))}
+                  </p>
+                ) : null}
                 <p className="mt-2 text-xs text-zinc-500">
                   {post.board_slug ? (
                     <>

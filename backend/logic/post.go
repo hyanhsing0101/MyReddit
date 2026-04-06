@@ -12,7 +12,10 @@ var (
 	ErrCannotPostToSystemBoard = errors.New("cannot post to system board")
 	ErrInvalidBoardID          = errors.New("invalid board id")
 	ErrDeletePostForbidden     = errors.New("delete post forbidden")
+	ErrTagCountExceedsMaxLimit = errors.New("tag count exceeds the maximum limit")
 )
+
+const MaxPostTagCount = 5
 
 func CreatePost(p *models.ParamCreatePost, userID int64) error {
 	board, err := postgres.GetBoardByID(p.BoardID)
@@ -22,6 +25,13 @@ func CreatePost(p *models.ParamCreatePost, userID int64) error {
 	if board.IsSystemSink {
 		return ErrCannotPostToSystemBoard
 	}
+	tagIDs, err := postgres.ValidateTagIDs(p.TagIDs)
+	if err != nil {
+		return err
+	}
+	if len(tagIDs) > MaxPostTagCount {
+		return ErrTagCountExceedsMaxLimit
+	}
 	post := models.Post{
 		BoardID:    p.BoardID,
 		Title:      p.Title,
@@ -30,7 +40,11 @@ func CreatePost(p *models.ParamCreatePost, userID int64) error {
 		CreateTime: time.Now(),
 		UpdateTime: time.Now(),
 	}
-	if err := postgres.CreatePost(&post); err != nil {
+	postid, err := postgres.CreatePost(&post)
+	if err != nil {
+		return err
+	}
+	if err := postgres.ReplacePostTags(postid, tagIDs); err != nil {
 		return err
 	}
 	return nil
@@ -59,7 +73,13 @@ func ListPost(p *models.ParamPostList) (*models.PostListData, error) {
 	}
 	list := make([]models.PostView, 0, len(posts))
 	for _, row := range posts {
-		list = append(list, models.PostToView(row))
+		v := models.PostToView(row)
+		Tags, err := postgres.GetTagsByPostID(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		v.Tags = Tags
+		list = append(list, v)
 	}
 	return &models.PostListData{
 		List:     list,
@@ -75,6 +95,11 @@ func GetPost(id int64) (*models.PostView, error) {
 		return nil, err
 	}
 	v := models.PostToView(*post)
+	Tags, err := postgres.GetTagsByPostID(post.ID)
+	if err != nil {
+		return nil, err
+	}
+	v.Tags = Tags
 	return &v, nil
 }
 

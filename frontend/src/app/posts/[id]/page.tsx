@@ -13,6 +13,7 @@ import {
   apiGetPost,
   apiListComments,
   apiMePermissions,
+  tagDisplayLabel,
   type CommentItem,
   type MePermissionsPayload,
   type PostItem,
@@ -383,6 +384,18 @@ export default function PostDetailPage() {
             <div className="mt-8 whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-800 dark:text-zinc-200">
               {post.content}
             </div>
+            {post.tags?.length ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {post.tags.map((tag) => (
+                  <span
+                    key={tag.id}
+                    className="rounded bg-zinc-200 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                  >
+                    #{tagDisplayLabel(tag)}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </article>
 
           <section className="mt-12 rounded-xl border border-zinc-200 dark:border-zinc-800">

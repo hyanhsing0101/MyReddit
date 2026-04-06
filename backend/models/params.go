@@ -29,9 +29,10 @@ type TokenPair struct {
 // =============================================================================
 
 type ParamCreatePost struct {
-	BoardID int64  `json:"board_id" binding:"required"`
-	Title   string `json:"title" binding:"required"`
-	Content string `json:"content" binding:"required"`
+	BoardID int64   `json:"board_id" binding:"required"`
+	TagIDs []int64 `json:"tag_ids" binding:"required"`
+	Title   string  `json:"title" binding:"required"`
+	Content string  `json:"content" binding:"required"`
 }
 
 type ParamPostList struct {
@@ -127,7 +128,7 @@ func (p *ParamSearch) Normalize() {
 	if p.Scope != "all" && p.Scope != "posts" && p.Scope != "boards" {
 		p.Scope = "all"
 	}
-	
+
 	if p.PostLimit < 1 {
 		p.PostLimit = 20
 	}
@@ -139,5 +140,26 @@ func (p *ParamSearch) Normalize() {
 	}
 	if p.BoardLimit > 30 {
 		p.BoardLimit = 30
+	}
+}
+
+// =============================================================================
+// 标签
+// =============================================================================
+
+type ParamTagList struct {
+	Page     int `form:"page"`
+	PageSize int `form:"page_size"`
+}
+
+func (p *ParamTagList) Normalize() {
+	if p.Page < 1 {
+		p.Page = 1
+	}
+	if p.PageSize < 1 {
+		p.PageSize = 50
+	}
+	if p.PageSize > 200 {
+		p.PageSize = 200
 	}
 }

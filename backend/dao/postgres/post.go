@@ -12,10 +12,18 @@ var ErrorPostNotExist = errors.New("post not exist")
 const postSelectCols = `p.id, p.board_id, p.title, p.content, p.author_id, p.deleted_at, p.create_time, p.update_time,
 		       b.slug as board_slug, b.name as board_name`
 
-func CreatePost(post *models.Post) error {
-	sqlStr := `insert into "post" (board_id, title, content, author_id, create_time, update_time) values ($1, $2, $3, $4, $5, $6)`
-	_, err := db.Exec(sqlStr, post.BoardID, post.Title, post.Content, post.AuthorID, post.CreateTime, post.UpdateTime)
-	return err
+func CreatePost(post *models.Post) (int64, error) {
+	sqlStr := `
+		INSERT INTO "post" (board_id, title, content, author_id, create_time, update_time)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id;
+		`
+	var id int64
+	err := db.Get(&id, sqlStr, post.BoardID, post.Title, post.Content, post.AuthorID, post.CreateTime, post.UpdateTime)
+	if err != nil {
+		return 0, err
+	}
+	return id, err
 }
 
 func CountPosts(boardID *int64) (int64, error) {
