@@ -27,12 +27,18 @@ CREATE TABLE "board" (
     description TEXT,
     created_by BIGINT,
     is_system_sink BOOLEAN NOT NULL DEFAULT FALSE,
+    search_vector tsvector GENERATED ALWAYS AS (
+        setweight(to_tsvector('simple', coalesce(name, '')), 'A') ||
+        setweight(to_tsvector('simple', coalesce(slug, '')), 'B') ||
+        setweight(to_tsvector('simple', coalesce(description, '')), 'C')
+    ) STORED,
     create_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT board_slug_unique UNIQUE (slug),
     CONSTRAINT board_created_by_fk FOREIGN KEY (created_by) REFERENCES "user" (user_id) ON DELETE SET NULL
 );
 CREATE INDEX idx_board_created_by ON "board" (created_by);
+CREATE INDEX idx_board_search_vector ON "board" USING GIN (search_vector);
 
 CREATE TABLE "post" (
     id BIGSERIAL PRIMARY KEY,
@@ -41,6 +47,10 @@ CREATE TABLE "post" (
     content TEXT NOT NULL,
     author_id BIGINT,
     deleted_at TIMESTAMPTZ,
+    search_vector tsvector GENERATED ALWAYS AS (
+        setweight(to_tsvector('simple', coalesce(title, '')), 'A') ||
+        setweight(to_tsvector('simple', coalesce(content, '')), 'B')
+    ) STORED,
     create_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT post_board_id_fk FOREIGN KEY (board_id) REFERENCES "board" (id) ON DELETE RESTRICT,
@@ -49,6 +59,7 @@ CREATE TABLE "post" (
 CREATE INDEX idx_post_board_id ON "post" (board_id);
 CREATE INDEX idx_post_board_create_time ON "post" (board_id, create_time DESC);
 CREATE INDEX idx_post_author_id ON "post" (author_id);
+CREATE INDEX idx_post_search_vector ON "post" USING GIN (search_vector) WHERE deleted_at IS NULL;
 
 -- 评论：挂在帖子下；parent_id 为空表示顶层，非空表示回复某条评论（楼中楼）
 CREATE TABLE "comment" (

@@ -207,6 +207,15 @@ export type BoardListPayload = {
   page_size: number;
 };
 
+export type SearchScope = "all" | "posts" | "boards";
+
+export type SearchDataPayload = {
+  query: string;
+  scope: SearchScope;
+  posts: PostItem[];
+  boards: BoardItem[];
+};
+
 export async function apiListBoards(
   page = 1,
   pageSize = 20,
@@ -243,6 +252,22 @@ export async function apiCreateBoard(
     body: JSON.stringify(payload),
   });
   return parseJson<null>(res);
+}
+
+export async function apiSearch(
+  q: string,
+  scope: SearchScope = "all",
+  postLimit = 20,
+  boardLimit = 10,
+): Promise<ApiResponse<SearchDataPayload>> {
+  const params = new URLSearchParams({
+    q,
+    scope,
+    post_limit: String(postLimit),
+    board_limit: String(boardLimit),
+  });
+  const res = await fetch(`${API_BASE}/search?${params.toString()}`);
+  return parseJson<SearchDataPayload>(res);
 }
 
 export async function apiPing(accessToken: string): Promise<string> {

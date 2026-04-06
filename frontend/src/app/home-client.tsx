@@ -7,7 +7,10 @@ import {
   apiErrorMessage,
   apiListPosts,
   apiPing,
+  apiSearch,
+  type BoardItem,
   type PostItem,
+  type SearchScope,
 } from "@/lib/api";
 import {
   clearTokens,
@@ -33,6 +36,14 @@ export default function HomeClient() {
   const [listPageSize] = useState(10);
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
+
+  const [searchQ, setSearchQ] = useState("");
+  const [searchScope, setSearchScope] = useState<SearchScope>("all");
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchPosts, setSearchPosts] = useState<PostItem[]>([]);
+  const [searchBoards, setSearchBoards] = useState<BoardItem[]>([]);
+  const [searched, setSearched] = useState(false);
 
   const refreshAuthState = useCallback(() => {
     setLoggedIn(!!getAccessToken());
@@ -66,6 +77,40 @@ export default function HomeClient() {
   useEffect(() => {
     loadPosts(1);
   }, [loadPosts]);
+
+  async function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const q = searchQ.trim();
+    if (!q) {
+      setSearchError("请输入关键词");
+      setSearchPosts([]);
+      setSearchBoards([]);
+      setSearched(false);
+      return;
+    }
+    setSearching(true);
+    setSearchError(null);
+    try {
+      const body = await apiSearch(q, searchScope, 20, 10);
+      if (body.code !== API_SUCCESS_CODE || !body.data) {
+        setSearchError(apiErrorMessage(body));
+        setSearchPosts([]);
+        setSearchBoards([]);
+        setSearched(true);
+        return;
+      }
+      setSearchPosts(body.data.posts ?? []);
+      setSearchBoards(body.data.boards ?? []);
+      setSearched(true);
+    } catch (e) {
+      setSearchError(e instanceof Error ? e.message : "搜索失败");
+      setSearchPosts([]);
+      setSearchBoards([]);
+      setSearched(true);
+    } finally {
+      setSearching(false);
+    }
+  }
 
   async function handlePing() {
     const token = getAccessToken();
@@ -154,6 +199,79 @@ export default function HomeClient() {
           </>
         )}
       </nav>
+
+      <section className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+        <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          搜索
+        </h2>
+        <form onSubmit={handleSearch} className="mt-3 flex flex-wrap gap-2">
+          <input
+            value={searchQ}
+            onChange={(e) => setSearchQ(e.target.value)}
+            placeholder="搜标题、正文、板块（FTS 精准）"
+            className="min-w-[220px] flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+          />
+          <select
+            value={searchScope}
+            onChange={(e) => setSearchScope(e.target.value as SearchScope)}
+            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+          >
+            <option value="all">全局</option>
+            <option value="posts">仅帖子</option>
+            <option value="boards">仅板块</option>
+          </select>
+          <button
+            type="submit"
+            disabled={searching}
+            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+          >
+            {searching ? "搜索中…" : "搜索"}
+          </button>
+        </form>
+        {searchError ? (
+          <p className="mt-2 text-sm text-red-600 dark:text-red-400">{searchError}</p>
+        ) : null}
+        {searched ? (
+          <div className="mt-4 space-y-4">
+            {searchScope !== "boards" ? (
+              <div>
+                <p className="text-xs text-zinc-500">帖子结果（{searchPosts.length}）</p>
+                {searchPosts.length === 0 ? (
+                  <p className="mt-1 text-sm text-zinc-500">无</p>
+                ) : (
+                  <ul className="mt-1 space-y-1 text-sm">
+                    {searchPosts.map((p) => (
+                      <li key={p.id}>
+                        <Link href={`/posts/${p.id}`} className="underline">
+                          {p.title}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : null}
+            {searchScope !== "posts" ? (
+              <div>
+                <p className="text-xs text-zinc-500">板块结果（{searchBoards.length}）</p>
+                {searchBoards.length === 0 ? (
+                  <p className="mt-1 text-sm text-zinc-500">无</p>
+                ) : (
+                  <ul className="mt-1 space-y-1 text-sm">
+                    {searchBoards.map((b) => (
+                      <li key={b.id}>
+                        <Link href={`/boards/${encodeURIComponent(b.slug)}`} className="underline">
+                          {b.name} ({b.slug})
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
 
       <section className="rounded-xl border border-zinc-200 dark:border-zinc-800">
         <div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">

@@ -105,3 +105,39 @@ func (p *ParamCommentList) Normalize() {
 		p.PageSize = 200
 	}
 }
+
+// =============================================================================
+// 搜索
+// =============================================================================
+
+type ParamSearch struct {
+	Q          string `form:"q"`
+	Scope      string `form:"scope"`
+	PostLimit  int    `form:"post_limit"`
+	BoardLimit int    `form:"board_limit"`
+}
+
+func (p *ParamSearch) Normalize() {
+	if len(p.Q) > 200 {
+		p.Q = p.Q[:200]
+	}
+	if p.Scope == "" {
+		p.Scope = "all"
+	}
+	if p.Scope != "all" && p.Scope != "posts" && p.Scope != "boards" {
+		p.Scope = "all"
+	}
+	
+	if p.PostLimit < 1 {
+		p.PostLimit = 20
+	}
+	if p.PostLimit > 50 {
+		p.PostLimit = 50
+	}
+	if p.BoardLimit < 1 {
+		p.BoardLimit = 10
+	}
+	if p.BoardLimit > 30 {
+		p.BoardLimit = 30
+	}
+}

@@ -59,6 +59,10 @@ func SetupRouter(mode string) *gin.Engine {
 	// Postman：POST {{baseUrl}}/boards · Bearer · Body raw JSON：{"slug":"my_board","name":"展示名","description":"可选"}。
 	r.POST("/boards", middleware.JWTAuthMiddleware(), controller.CreateBoardHandler)
 
+	// 功能：全站搜索（FTS，scope=all|posts|boards 控制范围）。
+	// Postman：GET {{baseUrl}}/search?q=t1&scope=posts&post_limit=20&board_limit=10。
+	r.GET("/search", controller.SearchHandler)
+
 	// 任意登录用户：查看自己的权限
 	r.GET("/me/permissions", middleware.JWTAuthMiddleware(), controller.MePermissionsHandler)
 	// 测试：仅登录
@@ -66,7 +70,6 @@ func SetupRouter(mode string) *gin.Engine {
 	// 测试：仅站点管理员（注意中间件顺序）
 	r.GET("/debug/auth/admin", middleware.JWTAuthMiddleware(), middleware.RequireSiteAdmin(), controller.DebugAuthAdminHandler)
 
-	
 	// 功能：鉴权探活，成功返回纯文本 pong。
 	// Postman：GET {{baseUrl}}/ping · Bearer（任意有效 access_token）。
 	r.GET("/ping", middleware.JWTAuthMiddleware(), func(c *gin.Context) {
