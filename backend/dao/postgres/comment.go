@@ -28,7 +28,7 @@ func CountCommentsByPostID(postID int64) (int64, error) {
 func ListCommentsByPostID(postID int64, limit, offset int) ([]models.Comment, error) {
 	var list []models.Comment
 	const q = `
-		select c.id, c.post_id, c.author_id, c.parent_id, c.content, c.deleted_at, c.create_time, c.update_time,
+		select c.id, c.post_id, c.author_id, c.parent_id, c.content, c.deleted_at, c.score, c.create_time, c.update_time,
 		       u.username as author_username
 		from "comment" c
 		left join "user" u on u.user_id = c.author_id
@@ -43,7 +43,7 @@ func ListCommentsByPostID(postID int64, limit, offset int) ([]models.Comment, er
 func GetActiveCommentByID(id int64) (*models.Comment, error) {
 	var c models.Comment
 	const q = `
-		select c.id, c.post_id, c.author_id, c.parent_id, c.content, c.deleted_at, c.create_time, c.update_time,
+		select c.id, c.post_id, c.author_id, c.parent_id, c.content, c.deleted_at, c.score, c.create_time, c.update_time,
 		       u.username as author_username
 		from "comment" c
 		left join "user" u on u.user_id = c.author_id

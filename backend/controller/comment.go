@@ -24,7 +24,7 @@ func ListCommentsHandler(c *gin.Context) {
 		ResponseError(c, CodeInvalidParam)
 		return
 	}
-	data, err := logic.ListComments(postID, p)
+	data, err := logic.ListComments(postID, p, GetOptionalUserID(c))
 	if err != nil {
 		if errors.Is(err, postgres.ErrorPostNotExist) {
 			ResponseError(c, CodePostNotExist)

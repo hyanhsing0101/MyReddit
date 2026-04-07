@@ -43,7 +43,7 @@ func CreateComment(postID int64, userID int64, p *models.ParamCreateComment) err
 	return postgres.CreateComment(&c)
 }
 
-func ListComments(postID int64, param *models.ParamCommentList) (*models.CommentListData, error) {
+func ListComments(postID int64, param *models.ParamCommentList, viewerID *int64) (*models.CommentListData, error) {
 	if _, err := postgres.GetPostByID(postID); err != nil {
 		return nil, err
 	}
@@ -61,10 +61,41 @@ func ListComments(postID int64, param *models.ParamCommentList) (*models.Comment
 	for _, row := range rows {
 		list = append(list, models.CommentToView(row))
 	}
+	if viewerID != nil && len(list) > 0 {
+		ids := make([]int64, len(list))
+		for i := range list {
+			ids[i] = list[i].ID
+		}
+		m, err := postgres.GetCommentVotesForUser(*viewerID, ids)
+		if err != nil {
+			return nil, err
+		}
+		for i := range list {
+			if v, ok := m[list[i].ID]; ok {
+				x := v
+				list[i].MyVote = &x
+			}
+		}
+	}
 	return &models.CommentListData{
 		List:     list,
 		Total:    total,
 		Page:     param.Page,
 		PageSize: param.PageSize,
+	}, nil
+}
+
+// VoteComment 对评论上/下票或取消；返回最新 score 与 my_vote。
+func VoteComment(postID, commentID, userID int64, value int8) (*models.PostVoteResult, error) {
+	if _, err := postgres.GetPostByID(postID); err != nil {
+		return nil, err
+	}
+	score, myVote, err := postgres.ApplyCommentVote(postID, commentID, userID, value)
+	if err != nil {
+		return nil, err
+	}
+	return &models.PostVoteResult{
+		Score:  score,
+		MyVote: myVote,
 	}, nil
 }

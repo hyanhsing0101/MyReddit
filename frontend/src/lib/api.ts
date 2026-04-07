@@ -145,6 +145,8 @@ export type CommentItem = {
   author_username: string;
   parent_id: number | null;
   content: string;
+  score: number;
+  my_vote?: number | null;
   create_time: string;
   update_time: string;
 };
@@ -160,13 +162,40 @@ export async function apiListComments(
   postId: number,
   page = 1,
   pageSize = 100,
+  accessToken?: string | null,
 ): Promise<ApiResponse<CommentListPayload>> {
   const q = new URLSearchParams({
     page: String(page),
     page_size: String(pageSize),
   });
-  const res = await fetch(`${API_BASE}/posts/${postId}/comments?${q.toString()}`);
+  const headers: HeadersInit = {};
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+  const res = await fetch(`${API_BASE}/posts/${postId}/comments?${q.toString()}`, {
+    headers,
+  });
   return parseJson<CommentListPayload>(res);
+}
+
+export async function apiVoteComment(
+  accessToken: string,
+  postId: number,
+  commentId: number,
+  value: 1 | -1 | 0,
+): Promise<ApiResponse<PostVotePayload>> {
+  const res = await fetch(
+    `${API_BASE}/posts/${postId}/comments/${commentId}/vote`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ value }),
+    },
+  );
+  return parseJson<PostVotePayload>(res);
 }
 
 export async function apiCreateComment(

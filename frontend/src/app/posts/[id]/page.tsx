@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { CommentVoteControls } from "@/components/comment-vote-controls";
 import { PostVoteControls } from "@/components/post-vote-controls";
 import {
   API_FORBIDDEN_CODE,
@@ -56,13 +57,20 @@ function buildCommentTree(flat: CommentItem[]): CommentNode[] {
 }
 
 function CommentBranch({
+  postId,
   node,
   depth,
   onReply,
+  onCommentVotePatch,
 }: {
+  postId: number;
   node: CommentNode;
   depth: number;
   onReply: (id: number, name: string) => void;
+  onCommentVotePatch: (
+    commentId: number,
+    patch: { score: number; my_vote: number | null },
+  ) => void;
 }) {
   const label =
     node.author_username ||
@@ -75,35 +83,49 @@ function CommentBranch({
           : ""
       }
     >
-      <div className="flex flex-wrap items-baseline gap-2 text-sm">
-        <span className="font-medium text-zinc-800 dark:text-zinc-200">
-          {label}
-        </span>
-        <span className="text-xs text-zinc-500">
-          {new Date(node.create_time).toLocaleString("zh-CN", {
-            month: "numeric",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </span>
+      <div className="flex gap-3">
+        <CommentVoteControls
+          postId={postId}
+          commentId={node.id}
+          score={node.score ?? 0}
+          myVote={node.my_vote ?? null}
+          accessToken={getAccessToken()}
+          onUpdated={(patch) => onCommentVotePatch(node.id, patch)}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline gap-2 text-sm">
+            <span className="font-medium text-zinc-800 dark:text-zinc-200">
+              {label}
+            </span>
+            <span className="text-xs text-zinc-500">
+              {new Date(node.create_time).toLocaleString("zh-CN", {
+                month: "numeric",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+          </div>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">
+            {node.content}
+          </p>
+          <button
+            type="button"
+            onClick={() => onReply(node.id, label)}
+            className="mt-1 text-xs text-zinc-600 underline dark:text-zinc-400"
+          >
+            回复
+          </button>
+        </div>
       </div>
-      <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">
-        {node.content}
-      </p>
-      <button
-        type="button"
-        onClick={() => onReply(node.id, label)}
-        className="mt-1 text-xs text-zinc-600 underline dark:text-zinc-400"
-      >
-        回复
-      </button>
       {node.children.map((ch) => (
         <CommentBranch
           key={ch.id}
+          postId={postId}
           node={ch}
           depth={depth + 1}
           onReply={onReply}
+          onCommentVotePatch={onCommentVotePatch}
         />
       ))}
     </div>
@@ -148,7 +170,8 @@ export default function PostDetailPage() {
     setCommentsLoading(true);
     setCommentsError(null);
     try {
-      const body = await apiListComments(postId, 1, 100);
+      const token = getAccessToken();
+      const body = await apiListComments(postId, 1, 100, token);
       if (body.code !== API_SUCCESS_CODE || !body.data) {
         setCommentsError(apiErrorMessage(body));
         setComments([]);
@@ -243,6 +266,19 @@ export default function PostDetailPage() {
   const commentTree = useMemo(
     () => buildCommentTree(comments),
     [comments],
+  );
+
+  const patchCommentVote = useCallback(
+    (commentId: number, patch: { score: number; my_vote: number | null }) => {
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId
+            ? { ...c, score: patch.score, my_vote: patch.my_vote }
+            : c,
+        ),
+      );
+    },
+    [],
   );
 
   const showDelete = useMemo(() => {
@@ -444,11 +480,13 @@ export default function PostDetailPage() {
                   {commentTree.map((node) => (
                     <CommentBranch
                       key={node.id}
+                      postId={post.id}
                       node={node}
                       depth={0}
                       onReply={(cid, name) =>
                         setReplyTo({ id: cid, name })
                       }
+                      onCommentVotePatch={patchCommentVote}
                     />
                   ))}
                 </div>

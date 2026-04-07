@@ -31,8 +31,11 @@ func SetupRouter(mode string) *gin.Engine {
 	// Postman：POST {{baseUrl}}/post · Bearer · Body raw JSON：{"board_id":1,"title":"标题","content":"正文"}。
 	r.POST("/post", middleware.JWTAuthMiddleware(), controller.CreatePostHandler)
 	// 功能：分页拉取某帖评论（未软删、按时间正序）；帖子不存在或已删返回与详情一致。
-	// Postman：GET {{baseUrl}}/posts/1/comments?page=1&page_size=50。
-	r.GET("/posts/:id/comments", controller.ListCommentsHandler)
+	// Postman：GET {{baseUrl}}/posts/1/comments?page=1&page_size=50。可选 Bearer：每条含 my_vote。
+	r.GET("/posts/:id/comments", middleware.OptionalAuthMiddleware(), controller.ListCommentsHandler)
+	// 功能：登录用户对评论投票：Body {"value":1|-1|0}，评论须属于该帖。
+	// Postman：POST {{baseUrl}}/posts/1/comments/2/vote · Bearer。
+	r.POST("/posts/:id/comments/:cid/vote", middleware.JWTAuthMiddleware(), controller.VoteCommentHandler)
 	// 功能：登录用户发表评论；JSON 可选 parent_id 表示回复该条评论（须同属本帖）。
 	// Postman：POST {{baseUrl}}/posts/1/comments · Bearer · Body：{"content":"正文","parent_id":2}（parent_id 可省略）。
 	r.POST("/posts/:id/comments", middleware.JWTAuthMiddleware(), controller.CreateCommentHandler)

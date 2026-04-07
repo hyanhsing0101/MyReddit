@@ -12,6 +12,7 @@ type Comment struct {
 	ParentID         sql.NullInt64  `db:"parent_id"`
 	Content          string         `db:"content"`
 	DeletedAt        sql.NullTime   `db:"deleted_at"`
+	Score            int64          `db:"score"`
 	CreateTime       time.Time      `db:"create_time"`
 	UpdateTime       time.Time      `db:"update_time"`
 	AuthorUsername   sql.NullString `db:"author_username"`
@@ -24,6 +25,8 @@ type CommentView struct {
 	AuthorUsername string    `json:"author_username"`
 	ParentID       *int64    `json:"parent_id"`
 	Content        string    `json:"content"`
+	Score          int64     `json:"score"`
+	MyVote         *int8     `json:"my_vote"`
 	CreateTime     time.Time `json:"create_time"`
 	UpdateTime     time.Time `json:"update_time"`
 }
@@ -33,6 +36,7 @@ func CommentToView(c Comment) CommentView {
 		ID:         c.ID,
 		PostID:     c.PostID,
 		Content:    c.Content,
+		Score:      c.Score,
 		CreateTime: c.CreateTime,
 		UpdateTime: c.UpdateTime,
 	}
