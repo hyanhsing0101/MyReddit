@@ -73,6 +73,8 @@ export type PostItem = {
   score: number;
   /** 当前用户投票：1 / -1；未投为 null；未登录时通常不出现 */
   my_vote?: number | null;
+  /** 带合法 Bearer 时由后端返回 */
+  is_favorited?: boolean;
   create_time: string;
   update_time: string;
 };
@@ -225,6 +227,28 @@ export async function apiDeletePost(
   return parseJson<null>(res);
 }
 
+export async function apiAddPostFavorite(
+  accessToken: string,
+  postId: number,
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/posts/${postId}/favorite`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<null>(res);
+}
+
+export async function apiRemovePostFavorite(
+  accessToken: string,
+  postId: number,
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/posts/${postId}/unfavorite`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<null>(res);
+}
+
 export type MePermissionsPayload = {
   user_id: number;
   username: string;
@@ -265,6 +289,8 @@ export type BoardItem = {
   is_system_sink: boolean;
   create_time: string;
   update_time: string;
+  /** 带合法 Bearer 时由后端返回 */
+  is_favorited?: boolean;
 };
 
 export type TagItem = {
@@ -309,23 +335,104 @@ export async function apiListBoards(
   page = 1,
   pageSize = 20,
   includeSystemSink = false,
+  accessToken?: string | null,
 ): Promise<ApiResponse<BoardListPayload>> {
   const q = new URLSearchParams({
     page: String(page),
     page_size: String(pageSize),
   });
   if (includeSystemSink) q.set("include_system_sink", "true");
-  const res = await fetch(`${API_BASE}/boards?${q.toString()}`);
+  const headers: HeadersInit = {};
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+  const res = await fetch(`${API_BASE}/boards?${q.toString()}`, { headers });
   return parseJson<BoardListPayload>(res);
 }
 
 export async function apiGetBoardBySlug(
   slug: string,
+  accessToken?: string | null,
 ): Promise<ApiResponse<BoardItem>> {
+  const headers: HeadersInit = {};
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
   const res = await fetch(
     `${API_BASE}/boards/slug/${encodeURIComponent(slug)}`,
+    { headers },
   );
   return parseJson<BoardItem>(res);
+}
+
+export type BoardFavoriteRow = BoardItem & { favorited_at: string };
+
+export type BoardFavoriteListPayload = {
+  list: BoardFavoriteRow[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export type PostFavoriteRow = PostItem & { favorited_at: string };
+
+export type PostFavoriteListPayload = {
+  list: PostFavoriteRow[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export async function apiListFavoriteBoards(
+  accessToken: string,
+  page = 1,
+  pageSize = 20,
+): Promise<ApiResponse<BoardFavoriteListPayload>> {
+  const q = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  const res = await fetch(`${API_BASE}/me/favorite-boards?${q.toString()}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<BoardFavoriteListPayload>(res);
+}
+
+export async function apiListFavoritePosts(
+  accessToken: string,
+  page = 1,
+  pageSize = 20,
+): Promise<ApiResponse<PostFavoriteListPayload>> {
+  const q = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  const res = await fetch(`${API_BASE}/me/favorite-posts?${q.toString()}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<PostFavoriteListPayload>(res);
+}
+
+export async function apiAddBoardFavorite(
+  accessToken: string,
+  boardId: number,
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/boards/${boardId}/favorite`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<null>(res);
+}
+
+export async function apiRemoveBoardFavorite(
+  accessToken: string,
+  boardId: number,
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/boards/${boardId}/unfavorite`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<null>(res);
 }
 
 export async function apiCreateBoard(

@@ -18,6 +18,8 @@ var (
 	ErrBoardSlugReserved = errors.New("board slug reserved")
 	ErrBoardSlugInvalid  = errors.New("board slug invalid")
 	ErrBoardNameEmpty    = errors.New("board name empty")
+	// ErrCannotFavoriteSystemBoard 系统归档板等不可收藏
+	ErrCannotFavoriteSystemBoard = errors.New("cannot favorite system board")
 )
 
 func normalizeBoardSlug(slug string) string {
@@ -34,7 +36,31 @@ func validateBoardSlug(slug string) error {
 	return nil
 }
 
-func ListBoards(p *models.ParamBoardList) (*models.BoardListData, error) {
+func attachFavoriteFlagsToBoards(list []models.BoardView, viewerID *int64) error {
+	if viewerID == nil || len(list) == 0 {
+		return nil
+	}
+	ids := make([]int64, len(list))
+	for i := range list {
+		ids[i] = list[i].ID
+	}
+	found, err := postgres.ListBoardIDsFavoritedByUser(*viewerID, ids)
+	if err != nil {
+		return err
+	}
+	for i := range list {
+		if _, ok := found[list[i].ID]; ok {
+			t := true
+			list[i].IsFavorited = &t
+		} else {
+			f := false
+			list[i].IsFavorited = &f
+		}
+	}
+	return nil
+}
+
+func ListBoards(p *models.ParamBoardList, viewerID *int64) (*models.BoardListData, error) {
 	p.Normalize()
 	include := p.IncludeSystemSink
 	total, err := postgres.CountBoards(include)
@@ -50,6 +76,9 @@ func ListBoards(p *models.ParamBoardList) (*models.BoardListData, error) {
 	for _, row := range rows {
 		list = append(list, models.BoardToView(row))
 	}
+	if err := attachFavoriteFlagsToBoards(list, viewerID); err != nil {
+		return nil, err
+	}
 	return &models.BoardListData{
 		List:     list,
 		Total:    total,
@@ -58,16 +87,29 @@ func ListBoards(p *models.ParamBoardList) (*models.BoardListData, error) {
 	}, nil
 }
 
-func GetBoardByID(id int64) (*models.BoardView, error) {
+func GetBoardByID(id int64, viewerID *int64) (*models.BoardView, error) {
 	b, err := postgres.GetBoardByID(id)
 	if err != nil {
 		return nil, err
 	}
 	v := models.BoardToView(*b)
+	if viewerID != nil {
+		m, err := postgres.ListBoardIDsFavoritedByUser(*viewerID, []int64{id})
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := m[id]; ok {
+			t := true
+			v.IsFavorited = &t
+		} else {
+			f := false
+			v.IsFavorited = &f
+		}
+	}
 	return &v, nil
 }
 
-func GetBoardBySlug(slug string) (*models.BoardView, error) {
+func GetBoardBySlug(slug string, viewerID *int64) (*models.BoardView, error) {
 	slug = normalizeBoardSlug(slug)
 	if slug == "" {
 		return nil, postgres.ErrorBoardNotExist
@@ -76,8 +118,7 @@ func GetBoardBySlug(slug string) (*models.BoardView, error) {
 	if err != nil {
 		return nil, err
 	}
-	v := models.BoardToView(*b)
-	return &v, nil
+	return GetBoardByID(b.ID, viewerID)
 }
 
 func CreateBoard(p *models.ParamCreateBoard, userID int64) error {
@@ -104,4 +145,51 @@ func CreateBoard(p *models.ParamCreateBoard, userID int64) error {
 		UpdateTime:   now,
 	}
 	return postgres.CreateBoard(&b)
+}
+
+func AddBoardFavorite(userID, boardID int64) error {
+	b, err := postgres.GetBoardByID(boardID)
+	if err != nil {
+		return err
+	}
+	if b.IsSystemSink {
+		return ErrCannotFavoriteSystemBoard
+	}
+	return postgres.AddBoardFavorite(userID, boardID)
+}
+
+func RemoveBoardFavorite(userID, boardID int64) error {
+	if _, err := postgres.GetBoardByID(boardID); err != nil {
+		return err
+	}
+	return postgres.RemoveBoardFavorite(userID, boardID)
+}
+
+func ListMyFavoriteBoards(userID int64, p *models.ParamFavoriteBoardList) (*models.BoardFavoriteListData, error) {
+	p.Normalize()
+	total, err := postgres.CountBoardFavoritesByUser(userID)
+	if err != nil {
+		return nil, err
+	}
+	offset := (p.Page - 1) * p.PageSize
+	boards, favTimes, err := postgres.ListBoardFavoritesByUser(userID, p.PageSize, offset)
+	if err != nil {
+		return nil, err
+	}
+	list := make([]models.BoardFavoriteView, 0, len(boards))
+	for i := range boards {
+		bv := models.BoardToView(boards[i])
+		t := true
+		bv.IsFavorited = &t
+		list = append(list, models.BoardFavoriteView{
+			BoardView:   bv,
+			FavoritedAt: favTimes[i],
+		})
+	}
+	return &models.BoardFavoriteListData{
+		List:     list,
+		Total:    total,
+		Page:     p.Page,
+		PageSize: p.PageSize,
+	}, nil
 }

@@ -85,6 +85,9 @@ func ListPost(p *models.ParamPostList, viewerID *int64) (*models.PostListData, e
 		if err := attachPostMyVotes(list, *viewerID); err != nil {
 			return nil, err
 		}
+		if err := attachPostFavoriteFlags(list, *viewerID); err != nil {
+			return nil, err
+		}
 	}
 	return &models.PostListData{
 		List:     list,
@@ -110,6 +113,9 @@ func GetPost(id int64, viewerID *int64) (*models.PostView, error) {
 		if err := attachPostMyVotes(slice, *viewerID); err != nil {
 			return nil, err
 		}
+		if err := attachPostFavoriteFlags(slice, *viewerID); err != nil {
+			return nil, err
+		}
 		v = slice[0]
 	}
 	return &v, nil
@@ -131,6 +137,30 @@ func attachPostMyVotes(list []models.PostView, userID int64) error {
 		if val, ok := m[list[i].ID]; ok {
 			v := val
 			list[i].MyVote = &v
+		}
+	}
+	return nil
+}
+
+func attachPostFavoriteFlags(list []models.PostView, userID int64) error {
+	if len(list) == 0 {
+		return nil
+	}
+	ids := make([]int64, len(list))
+	for i := range list {
+		ids[i] = list[i].ID
+	}
+	m, err := postgres.ListPostIDsFavoritedByUser(userID, ids)
+	if err != nil {
+		return err
+	}
+	for i := range list {
+		if _, ok := m[list[i].ID]; ok {
+			t := true
+			list[i].IsFavorited = &t
+		} else {
+			f := false
+			list[i].IsFavorited = &f
 		}
 	}
 	return nil
@@ -171,4 +201,52 @@ func DeletePost(postID, operatorUserID int64) error {
 		return ErrDeletePostForbidden
 	}
 	return postgres.SoftDeletePost(postID, time.Now())
+}
+
+func AddPostFavorite(userID, postID int64) error {
+	if _, err := postgres.GetPostByID(postID); err != nil {
+		return err
+	}
+	return postgres.AddPostFavorite(userID, postID)
+}
+
+func RemovePostFavorite(userID, postID int64) error {
+	if _, err := postgres.GetPostByID(postID); err != nil {
+		return err
+	}
+	return postgres.RemovePostFavorite(userID, postID)
+}
+
+func ListMyFavoritePosts(userID int64, p *models.ParamFavoritePostList) (*models.PostFavoriteListData, error) {
+	p.Normalize()
+	total, err := postgres.CountPostFavoritesByUser(userID)
+	if err != nil {
+		return nil, err
+	}
+	offset := (p.Page - 1) * p.PageSize
+	posts, favTimes, err := postgres.ListPostFavoritesByUser(userID, p.PageSize, offset)
+	if err != nil {
+		return nil, err
+	}
+	list := make([]models.PostFavoriteView, 0, len(posts))
+	for i := range posts {
+		v := models.PostToView(posts[i])
+		tags, err := postgres.GetTagsByPostID(posts[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		v.Tags = tags
+		t := true
+		v.IsFavorited = &t
+		list = append(list, models.PostFavoriteView{
+			PostView:    v,
+			FavoritedAt: favTimes[i],
+		})
+	}
+	return &models.PostFavoriteListData{
+		List:     list,
+		Total:    total,
+		Page:     p.Page,
+		PageSize: p.PageSize,
+	}, nil
 }

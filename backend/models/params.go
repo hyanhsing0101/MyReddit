@@ -30,7 +30,7 @@ type TokenPair struct {
 
 type ParamCreatePost struct {
 	BoardID int64   `json:"board_id" binding:"required"`
-	TagIDs []int64 `json:"tag_ids" binding:"required"`
+	TagIDs  []int64 `json:"tag_ids" binding:"required"`
 	Title   string  `json:"title" binding:"required"`
 	Content string  `json:"content" binding:"required"`
 }
@@ -47,6 +47,23 @@ func (p *ParamPostList) Normalize() {
 	}
 	if p.PageSize < 1 {
 		p.PageSize = 10
+	}
+	if p.PageSize > 100 {
+		p.PageSize = 100
+	}
+}
+
+type ParamFavoritePostList struct {
+	Page     int `form:"page"`
+	PageSize int `form:"page_size"`
+}
+
+func (p *ParamFavoritePostList) Normalize() {
+	if p.Page < 1 {
+		p.Page = 1
+	}
+	if p.PageSize < 1 {
+		p.PageSize = 20
 	}
 	if p.PageSize > 100 {
 		p.PageSize = 100
@@ -84,6 +101,23 @@ type ParamCreateBoard struct {
 	Slug        string `json:"slug" binding:"required"`
 	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
+}
+
+type ParamFavoriteBoardList struct {
+	Page     int `form:"page"`
+	PageSize int `form:"page_size"`
+}
+
+func (p *ParamFavoriteBoardList) Normalize() {
+	if p.Page < 1 {
+		p.Page = 1
+	}
+	if p.PageSize < 1 {
+		p.PageSize = 20
+	}
+	if p.PageSize > 100 {
+		p.PageSize = 100
+	}
 }
 
 // =============================================================================

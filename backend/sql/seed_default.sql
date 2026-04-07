@@ -59,3 +59,17 @@ SELECT p.id, t.id
 FROM "post" p, "tag" t
 WHERE p.title = 't2' AND t.slug IN ('discussion', 'show')
 ON CONFLICT (post_id, tag_id) DO NOTHING;
+
+-- hyan1 收藏综合板与 T 板（联调收藏列表 / is_favorited）
+INSERT INTO board_favorite (user_id, board_id, create_time)
+SELECT 10002, b.id, NOW()
+FROM board b
+WHERE b.slug IN ('general', 't')
+ON CONFLICT (user_id, board_id) DO NOTHING;
+
+-- hyan1 收藏帖子 t1（联调帖子收藏）
+INSERT INTO post_favorite (user_id, post_id, create_time)
+SELECT 10002, p.id, NOW()
+FROM "post" p
+WHERE p.title = 't1'
+ON CONFLICT (user_id, post_id) DO NOTHING;

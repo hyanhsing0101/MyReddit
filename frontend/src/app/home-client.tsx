@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { PostFavoriteButton } from "@/components/post-favorite-button";
 import { PostVoteControls } from "@/components/post-vote-controls";
 import {
   API_SUCCESS_CODE,
@@ -187,6 +188,18 @@ export default function HomeClient() {
               板块
             </Link>
             <Link
+              href="/boards/favorites"
+              className="rounded-lg border border-zinc-300 px-4 py-2 dark:border-zinc-600"
+            >
+              收藏板块
+            </Link>
+            <Link
+              href="/posts/favorites"
+              className="rounded-lg border border-zinc-300 px-4 py-2 dark:border-zinc-600"
+            >
+              收藏帖子
+            </Link>
+            <Link
               href="/post/new"
               className="rounded-lg bg-zinc-900 px-4 py-2 text-white dark:bg-zinc-100 dark:text-zinc-900"
             >
@@ -301,26 +314,45 @@ export default function HomeClient() {
                 key={post.id}
                 className="flex gap-3 px-4 py-4 max-sm:flex-col max-sm:gap-2"
               >
-                <PostVoteControls
-                  postId={post.id}
-                  score={post.score ?? 0}
-                  myVote={post.my_vote ?? null}
-                  accessToken={getAccessToken()}
-                  compact
-                  onUpdated={(patch) => {
-                    setPosts((prev) =>
-                      prev.map((p) =>
-                        p.id === post.id
-                          ? {
-                              ...p,
-                              score: patch.score,
-                              my_vote: patch.my_vote,
-                            }
-                          : p,
-                      ),
-                    );
-                  }}
-                />
+                <div className="flex shrink-0 flex-col items-center gap-2">
+                  <PostVoteControls
+                    postId={post.id}
+                    score={post.score ?? 0}
+                    myVote={post.my_vote ?? null}
+                    accessToken={getAccessToken()}
+                    compact
+                    onUpdated={(patch) => {
+                      setPosts((prev) =>
+                        prev.map((p) =>
+                          p.id === post.id
+                            ? {
+                                ...p,
+                                score: patch.score,
+                                my_vote: patch.my_vote,
+                              }
+                            : p,
+                        ),
+                      );
+                    }}
+                  />
+                  <PostFavoriteButton
+                    postId={post.id}
+                    isFavorited={!!post.is_favorited}
+                    accessToken={getAccessToken()}
+                    onUpdated={(next) => {
+                      setPosts((prev) =>
+                        prev.map((p) =>
+                          p.id === post.id
+                            ? {
+                                ...p,
+                                is_favorited: next,
+                              }
+                            : p,
+                        ),
+                      );
+                    }}
+                  />
+                </div>
                 <div className="min-w-0 flex-1">
                 <h3 className="font-medium text-zinc-900 dark:text-zinc-100">
                   <Link

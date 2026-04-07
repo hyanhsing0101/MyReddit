@@ -19,7 +19,7 @@ func ListBoardsHandler(c *gin.Context) {
 		ResponseError(c, CodeInvalidParam)
 		return
 	}
-	data, err := logic.ListBoards(p)
+	data, err := logic.ListBoards(p, GetOptionalUserID(c))
 	if err != nil {
 		zap.L().Error("List Boards Failed", zap.Error(err))
 		ResponseError(c, CodeServerBusy)
@@ -36,7 +36,7 @@ func GetBoardByIDHandler(c *gin.Context) {
 		ResponseError(c, CodeInvalidParam)
 		return
 	}
-	data, err := logic.GetBoardByID(id)
+	data, err := logic.GetBoardByID(id, GetOptionalUserID(c))
 	if err != nil {
 		if errors.Is(err, postgres.ErrorBoardNotExist) {
 			ResponseError(c, CodeBoardNotExist)
@@ -55,7 +55,7 @@ func GetBoardBySlugHandler(c *gin.Context) {
 		ResponseError(c, CodeInvalidParam)
 		return
 	}
-	data, err := logic.GetBoardBySlug(slug)
+	data, err := logic.GetBoardBySlug(slug, GetOptionalUserID(c))
 	if err != nil {
 		if errors.Is(err, postgres.ErrorBoardNotExist) {
 			ResponseError(c, CodeBoardNotExist)

@@ -25,6 +25,8 @@ type BoardView struct {
 	IsSystemSink bool      `json:"is_system_sink"`
 	CreateTime   time.Time `json:"create_time"`
 	UpdateTime   time.Time `json:"update_time"`
+	// IsFavorited 仅当请求带合法登录态时设置 true/false；未登录时省略。
+	IsFavorited *bool `json:"is_favorited,omitempty"`
 }
 
 func BoardToView(b Board) BoardView {
@@ -51,4 +53,17 @@ type BoardListData struct {
 	Total    int64       `json:"total"`
 	Page     int         `json:"page"`
 	PageSize int         `json:"page_size"`
+}
+
+// BoardFavoriteView 我收藏的板块：板块字段 + 收藏时间
+type BoardFavoriteView struct {
+	BoardView
+	FavoritedAt time.Time `json:"favorited_at"`
+}
+
+type BoardFavoriteListData struct {
+	List     []BoardFavoriteView `json:"list"`
+	Total    int64               `json:"total"`
+	Page     int                 `json:"page"`
+	PageSize int                 `json:"page_size"`
 }

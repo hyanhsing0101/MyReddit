@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CommentVoteControls } from "@/components/comment-vote-controls";
+import { PostFavoriteButton } from "@/components/post-favorite-button";
 import { PostVoteControls } from "@/components/post-vote-controls";
 import {
   API_FORBIDDEN_CODE,
@@ -396,6 +397,16 @@ export default function PostDetailPage() {
                 <h1 className="min-w-0 flex-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
                   {post.title}
                 </h1>
+                <PostFavoriteButton
+                  postId={post.id}
+                  isFavorited={!!post.is_favorited}
+                  accessToken={getAccessToken()}
+                  onUpdated={(next) => {
+                    setPost((prev) =>
+                      prev ? { ...prev, is_favorited: next } : prev,
+                    );
+                  }}
+                />
               </div>
               {showDelete ? (
                 <button

@@ -6,7 +6,9 @@ DROP TABLE IF EXISTS "comment";
 DROP TABLE IF EXISTS "post_tag";
 DROP TABLE IF EXISTS "tag";
 DROP TABLE IF EXISTS "post_vote";
+DROP TABLE IF EXISTS "post_favorite";
 DROP TABLE IF EXISTS "post";
+DROP TABLE IF EXISTS "board_favorite";
 DROP TABLE IF EXISTS "board";
 DROP TABLE IF EXISTS "user";
 
@@ -44,6 +46,18 @@ CREATE TABLE "board" (
 CREATE INDEX idx_board_created_by ON "board" (created_by);
 CREATE INDEX idx_board_search_vector ON "board" USING GIN (search_vector);
 
+-- 用户收藏板块（订阅/星标）
+CREATE TABLE "board_favorite" (
+    user_id BIGINT NOT NULL,
+    board_id BIGINT NOT NULL,
+    create_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT board_favorite_pk PRIMARY KEY (user_id, board_id),
+    CONSTRAINT board_favorite_user_fk FOREIGN KEY (user_id) REFERENCES "user" (user_id) ON DELETE CASCADE,
+    CONSTRAINT board_favorite_board_fk FOREIGN KEY (board_id) REFERENCES "board" (id) ON DELETE CASCADE
+);
+CREATE INDEX idx_board_favorite_board_id ON "board_favorite" (board_id);
+CREATE INDEX idx_board_favorite_user_time ON "board_favorite" (user_id, create_time DESC);
+
 CREATE TABLE "post" (
     id BIGSERIAL PRIMARY KEY,
     board_id BIGINT NOT NULL,
@@ -66,6 +80,18 @@ CREATE INDEX idx_post_board_create_time ON "post" (board_id, create_time DESC);
 CREATE INDEX idx_post_author_id ON "post" (author_id);
 CREATE INDEX idx_post_search_vector ON "post" USING GIN (search_vector) WHERE deleted_at IS NULL;
 CREATE INDEX idx_post_board_score ON "post" (board_id, score DESC) WHERE deleted_at IS NULL;
+
+-- 用户收藏帖子（星标）
+CREATE TABLE "post_favorite" (
+    user_id BIGINT NOT NULL,
+    post_id BIGINT NOT NULL,
+    create_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT post_favorite_pk PRIMARY KEY (user_id, post_id),
+    CONSTRAINT post_favorite_user_fk FOREIGN KEY (user_id) REFERENCES "user" (user_id) ON DELETE CASCADE,
+    CONSTRAINT post_favorite_post_fk FOREIGN KEY (post_id) REFERENCES "post" (id) ON DELETE CASCADE
+);
+CREATE INDEX idx_post_favorite_post_id ON "post_favorite" (post_id);
+CREATE INDEX idx_post_favorite_user_time ON "post_favorite" (user_id, create_time DESC);
 
 -- 每用户每帖至多一行；value=1 上票，-1 下票；改票 UPDATE，取消 DELETE
 CREATE TABLE "post_vote" (

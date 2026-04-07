@@ -22,18 +22,20 @@ type Post struct {
 
 // PostView 列表/详情接口返回用，author_id 可空时用 JSON null
 type PostView struct {
-	ID         int64     `json:"id"`
-	BoardID    int64     `json:"board_id"`
-	BoardSlug  string    `json:"board_slug"`
-	BoardName  string    `json:"board_name"`
-	Title      string    `json:"title"`
-	Content    string    `json:"content"`
-	AuthorID   *int64    `json:"author_id"`
-	Score      int64     `json:"score"`
-	MyVote     *int8     `json:"my_vote"`
-	CreateTime time.Time `json:"create_time"`
-	UpdateTime time.Time `json:"update_time"`
-	Tags       []Tag     `json:"tags"`
+	ID        int64  `json:"id"`
+	BoardID   int64  `json:"board_id"`
+	BoardSlug string `json:"board_slug"`
+	BoardName string `json:"board_name"`
+	Title     string `json:"title"`
+	Content   string `json:"content"`
+	AuthorID  *int64 `json:"author_id"`
+	Score     int64  `json:"score"`
+	MyVote    *int8  `json:"my_vote"`
+	// IsFavorited 仅当请求带合法登录态时设置 true/false；未登录时省略。
+	IsFavorited *bool     `json:"is_favorited,omitempty"`
+	CreateTime  time.Time `json:"create_time"`
+	UpdateTime  time.Time `json:"update_time"`
+	Tags        []Tag     `json:"tags"`
 }
 
 func PostToView(p Post) PostView {
@@ -64,6 +66,19 @@ type PostListData struct {
 	Total    int64      `json:"total"`
 	Page     int        `json:"page"`
 	PageSize int        `json:"page_size"`
+}
+
+// PostFavoriteView 我收藏的帖子：帖子字段 + 收藏时间
+type PostFavoriteView struct {
+	PostView
+	FavoritedAt time.Time `json:"favorited_at"`
+}
+
+type PostFavoriteListData struct {
+	List     []PostFavoriteView `json:"list"`
+	Total    int64              `json:"total"`
+	Page     int                `json:"page"`
+	PageSize int                `json:"page_size"`
 }
 
 // PostVoteResult 投票接口返回：最新净分与当前用户投票状态（未投为 null）。

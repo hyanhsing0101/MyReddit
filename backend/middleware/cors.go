@@ -15,7 +15,11 @@ func CORS() gin.HandlerFunc {
 		if _, ok := allowedOrigins[origin]; ok {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
 		}
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		// DELETE 等需显式允许，否则浏览器拒绝跨域收藏取消等请求。
+		c.Writer.Header().Set(
+			"Access-Control-Allow-Methods",
+			"GET, POST, PUT, PATCH, DELETE, OPTIONS",
+		)
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)

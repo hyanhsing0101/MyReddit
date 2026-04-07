@@ -1,16 +1,25 @@
-.PHONY: help deps-up deps-down deps-logs backend frontend dev test lint fe-lint \
+.PHONY: help deps-up deps-down deps-logs db backend frontend dev test lint fe-lint \
 	mobile-pub-get mobile-clean mobile-analyze mobile-build-apk mobile-run
 
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
 MOBILE_DIR := mobile
 DOCKER_COMPOSE_FILE := infra/docker/docker-compose.yaml
+SQL_DIR := $(BACKEND_DIR)/sql
+RESET_SQL := $(SQL_DIR)/reset_schema.sql
+SEED_SQL := $(SQL_DIR)/seed_default.sql
+
+# 与 docker-compose / backend/conf/config.yaml 默认一致；仅 make db 时用（容器内 psql）
+PGUSER ?= hyan
+PGPASSWORD ?= root
+PGDATABASE ?= myreddit
 
 help:
 	@echo "Available targets:"
-	@echo "  make deps-up       - Start MySQL/Redis via Docker Compose"
-	@echo "  make deps-down     - Stop MySQL/Redis"
+	@echo "  make deps-up       - Start Postgres/Redis via Docker Compose"
+	@echo "  make deps-down     - Stop Postgres/Redis"
 	@echo "  make deps-logs     - View Docker service logs"
+	@echo "  make db            - 执行 reset_schema.sql + seed_default.sql（经 Docker 容器 postgres，需先 deps-up）"
 	@echo "  make backend       - Run backend API server"
 	@echo "  make frontend      - Run Next.js dev server"
 	@echo "  make dev           - Start backend + frontend together"
@@ -35,6 +44,14 @@ deps-down:
 
 deps-logs:
 	docker compose -f $(DOCKER_COMPOSE_FILE) logs -f
+
+# 清空并重建表结构，再灌入默认种子数据（破坏性操作；不依赖本机 psql）
+db:
+	@echo "[db] Docker postgres：$(RESET_SQL) -> $(SEED_SQL)"
+	cat $(RESET_SQL) | docker compose -f $(DOCKER_COMPOSE_FILE) exec -T postgres \
+		env PGPASSWORD="$(PGPASSWORD)" psql -U "$(PGUSER)" -d "$(PGDATABASE)" -v ON_ERROR_STOP=1
+	cat $(SEED_SQL) | docker compose -f $(DOCKER_COMPOSE_FILE) exec -T postgres \
+		env PGPASSWORD="$(PGPASSWORD)" psql -U "$(PGUSER)" -d "$(PGDATABASE)" -v ON_ERROR_STOP=1
 
 backend:
 	cd $(BACKEND_DIR) && go run main.go -c conf/config.yaml
