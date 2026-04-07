@@ -9,7 +9,7 @@ import (
 
 var ErrorPostNotExist = errors.New("post not exist")
 
-const postSelectCols = `p.id, p.board_id, p.title, p.content, p.author_id, p.deleted_at, p.create_time, p.update_time,
+const postSelectCols = `p.id, p.board_id, p.title, p.content, p.author_id, p.deleted_at, p.score, p.create_time, p.update_time,
 		       b.slug as board_slug, b.name as board_name`
 
 func CreatePost(post *models.Post) (int64, error) {

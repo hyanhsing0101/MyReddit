@@ -1,9 +1,11 @@
 -- 清空并重建库表（仅结构，无业务数据）。执行顺序：先本文件，再 seed_default.sql
--- 注意：会删除全部用户、板块、帖子、评论
+-- 注意：会删除全部用户、板块、帖子、评论、投票
 
+DROP TABLE IF EXISTS "comment_vote";
 DROP TABLE IF EXISTS "comment";
 DROP TABLE IF EXISTS "post_tag";
 DROP TABLE IF EXISTS "tag";
+DROP TABLE IF EXISTS "post_vote";
 DROP TABLE IF EXISTS "post";
 DROP TABLE IF EXISTS "board";
 DROP TABLE IF EXISTS "user";
@@ -53,6 +55,7 @@ CREATE TABLE "post" (
         setweight(to_tsvector('simple', coalesce(title, '')), 'A') ||
         setweight(to_tsvector('simple', coalesce(content, '')), 'B')
     ) STORED,
+    score BIGINT NOT NULL DEFAULT 0,
     create_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT post_board_id_fk FOREIGN KEY (board_id) REFERENCES "board" (id) ON DELETE RESTRICT,
@@ -62,6 +65,21 @@ CREATE INDEX idx_post_board_id ON "post" (board_id);
 CREATE INDEX idx_post_board_create_time ON "post" (board_id, create_time DESC);
 CREATE INDEX idx_post_author_id ON "post" (author_id);
 CREATE INDEX idx_post_search_vector ON "post" USING GIN (search_vector) WHERE deleted_at IS NULL;
+CREATE INDEX idx_post_board_score ON "post" (board_id, score DESC) WHERE deleted_at IS NULL;
+
+-- 每用户每帖至多一行；value=1 上票，-1 下票；改票 UPDATE，取消 DELETE
+CREATE TABLE "post_vote" (
+    post_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    value SMALLINT NOT NULL,
+    create_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT post_vote_pk PRIMARY KEY (post_id, user_id),
+    CONSTRAINT post_vote_value_check CHECK (value IN (-1, 1)),
+    CONSTRAINT post_vote_post_fk FOREIGN KEY (post_id) REFERENCES "post" (id) ON DELETE CASCADE,
+    CONSTRAINT post_vote_user_fk FOREIGN KEY (user_id) REFERENCES "user" (user_id) ON DELETE CASCADE
+);
+CREATE INDEX idx_post_vote_user_id ON "post_vote" (user_id);
 
 -- 标签：全站共用
 CREATE TABLE "tag" (
@@ -94,6 +112,7 @@ CREATE TABLE "comment" (
     parent_id BIGINT,
     content TEXT NOT NULL,
     deleted_at TIMESTAMPTZ,
+    score BIGINT NOT NULL DEFAULT 0,
     create_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT comment_post_fk FOREIGN KEY (post_id) REFERENCES "post" (id) ON DELETE CASCADE,
@@ -103,3 +122,17 @@ CREATE TABLE "comment" (
 CREATE INDEX idx_comment_post_id ON "comment" (post_id);
 CREATE INDEX idx_comment_post_create_time ON "comment" (post_id, create_time);
 CREATE INDEX idx_comment_parent_id ON "comment" (parent_id);
+
+-- 评论投票：语义同 post_vote
+CREATE TABLE "comment_vote" (
+    comment_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    value SMALLINT NOT NULL,
+    create_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT comment_vote_pk PRIMARY KEY (comment_id, user_id),
+    CONSTRAINT comment_vote_value_check CHECK (value IN (-1, 1)),
+    CONSTRAINT comment_vote_comment_fk FOREIGN KEY (comment_id) REFERENCES "comment" (id) ON DELETE CASCADE,
+    CONSTRAINT comment_vote_user_fk FOREIGN KEY (user_id) REFERENCES "user" (user_id) ON DELETE CASCADE
+);
+CREATE INDEX idx_comment_vote_user_id ON "comment_vote" (user_id);

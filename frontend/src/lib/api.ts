@@ -2,6 +2,8 @@ const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8081";
 
 export const API_SUCCESS_CODE = 1000;
+/** 与后端 controller.CodeNeedLogin 一致 */
+export const API_NEED_LOGIN_CODE = 1007;
 /** 与后端 controller.CodePostNotExist 一致 */
 export const API_POST_NOT_EXIST_CODE = 1008;
 /** 与后端 controller.CodeForbidden 一致 */
@@ -67,6 +69,10 @@ export type PostItem = {
   title: string;
   content: string;
   author_id: number | null;
+  /** 净分（上票 − 下票） */
+  score: number;
+  /** 当前用户投票：1 / -1；未投为 null；未登录时通常不出现 */
+  my_vote?: number | null;
   create_time: string;
   update_time: string;
 };
@@ -82,6 +88,7 @@ export async function apiListPosts(
   page = 1,
   pageSize = 10,
   boardId?: number,
+  accessToken?: string | null,
 ): Promise<ApiResponse<PostListPayload>> {
   const q = new URLSearchParams({
     page: String(page),
@@ -90,15 +97,45 @@ export async function apiListPosts(
   if (boardId != null && boardId >= 1) {
     q.set("board_id", String(boardId));
   }
-  const res = await fetch(`${API_BASE}/posts?${q.toString()}`);
+  const headers: HeadersInit = {};
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+  const res = await fetch(`${API_BASE}/posts?${q.toString()}`, { headers });
   return parseJson<PostListPayload>(res);
 }
 
 export async function apiGetPost(
   id: number,
+  accessToken?: string | null,
 ): Promise<ApiResponse<PostItem>> {
-  const res = await fetch(`${API_BASE}/posts/${id}`);
+  const headers: HeadersInit = {};
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+  const res = await fetch(`${API_BASE}/posts/${id}`, { headers });
   return parseJson<PostItem>(res);
+}
+
+export type PostVotePayload = {
+  score: number;
+  my_vote: number | null;
+};
+
+export async function apiVotePost(
+  accessToken: string,
+  postId: number,
+  value: 1 | -1 | 0,
+): Promise<ApiResponse<PostVotePayload>> {
+  const res = await fetch(`${API_BASE}/posts/${postId}/vote`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ value }),
+  });
+  return parseJson<PostVotePayload>(res);
 }
 
 export type CommentItem = {

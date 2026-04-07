@@ -62,7 +62,7 @@ func ListPostHandler(c *gin.Context) {
 		ResponseError(c, CodeInvalidParam)
 		return
 	}
-	data, err := logic.ListPost(p)
+	data, err := logic.ListPost(p, GetOptionalUserID(c))
 	if err != nil {
 		if errors.Is(err, postgres.ErrorBoardNotExist) {
 			ResponseError(c, CodeBoardNotExist)
@@ -87,7 +87,7 @@ func GetPostHandler(c *gin.Context) {
 		ResponseError(c, CodeInvalidParam)
 		return
 	}
-	data, err := logic.GetPost(id)
+	data, err := logic.GetPost(id, GetOptionalUserID(c))
 	if err != nil {
 		if errors.Is(err, postgres.ErrorPostNotExist) {
 			ResponseError(c, CodePostNotExist)

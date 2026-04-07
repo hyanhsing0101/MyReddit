@@ -53,6 +53,11 @@ func (p *ParamPostList) Normalize() {
 	}
 }
 
+// ParamVotePost value：1 上票，-1 下票，0 取消投票（须显式传，不可省略）。
+type ParamVotePost struct {
+	Value *int8 `json:"value" binding:"required"`
+}
+
 // =============================================================================
 // 板块
 // =============================================================================

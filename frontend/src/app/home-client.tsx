@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { PostVoteControls } from "@/components/post-vote-controls";
 import {
   API_SUCCESS_CODE,
   apiErrorMessage,
@@ -58,7 +59,8 @@ export default function HomeClient() {
     setListLoading(true);
     setListError(null);
     try {
-      const body = await apiListPosts(page, listPageSize);
+      const token = getAccessToken();
+      const body = await apiListPosts(page, listPageSize, undefined, token);
       if (body.code !== API_SUCCESS_CODE || !body.data) {
         setListError(apiErrorMessage(body));
         setPosts([]);
@@ -76,8 +78,8 @@ export default function HomeClient() {
   }, [listPageSize]);
 
   useEffect(() => {
-    loadPosts(1);
-  }, [loadPosts]);
+    void loadPosts(listPage);
+  }, [listPage, loggedIn, loadPosts]);
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -295,7 +297,31 @@ export default function HomeClient() {
             </p>
           ) : (
             posts.map((post) => (
-              <article key={post.id} className="px-4 py-4">
+              <article
+                key={post.id}
+                className="flex gap-3 px-4 py-4 max-sm:flex-col max-sm:gap-2"
+              >
+                <PostVoteControls
+                  postId={post.id}
+                  score={post.score ?? 0}
+                  myVote={post.my_vote ?? null}
+                  accessToken={getAccessToken()}
+                  compact
+                  onUpdated={(patch) => {
+                    setPosts((prev) =>
+                      prev.map((p) =>
+                        p.id === post.id
+                          ? {
+                              ...p,
+                              score: patch.score,
+                              my_vote: patch.my_vote,
+                            }
+                          : p,
+                      ),
+                    );
+                  }}
+                />
+                <div className="min-w-0 flex-1">
                 <h3 className="font-medium text-zinc-900 dark:text-zinc-100">
                   <Link
                     href={`/posts/${post.id}`}
@@ -342,6 +368,7 @@ export default function HomeClient() {
                     minute: "2-digit",
                   })}
                 </p>
+                </div>
               </article>
             ))
           )}
@@ -355,7 +382,7 @@ export default function HomeClient() {
               <button
                 type="button"
                 disabled={!canPrev}
-                onClick={() => loadPosts(listPage - 1)}
+                onClick={() => setListPage((p) => Math.max(1, p - 1))}
                 className="rounded border border-zinc-300 px-3 py-1 disabled:opacity-40 dark:border-zinc-600"
               >
                 上一页
@@ -363,7 +390,9 @@ export default function HomeClient() {
               <button
                 type="button"
                 disabled={!canNext}
-                onClick={() => loadPosts(listPage + 1)}
+                onClick={() =>
+                  setListPage((p) => Math.min(totalPages, p + 1))
+                }
                 className="rounded border border-zinc-300 px-3 py-1 disabled:opacity-40 dark:border-zinc-600"
               >
                 下一页

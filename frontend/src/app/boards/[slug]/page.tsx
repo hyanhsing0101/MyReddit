@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { PostVoteControls } from "@/components/post-vote-controls";
 import {
   API_SUCCESS_CODE,
   apiErrorMessage,
@@ -11,6 +12,7 @@ import {
   type BoardItem,
   type PostItem,
 } from "@/lib/api";
+import { getAccessToken } from "@/lib/auth-storage";
 
 function previewText(text: string, max = 100) {
   const t = text.replace(/\s+/g, " ").trim();
@@ -39,6 +41,7 @@ export default function BoardDetailPage() {
   const postPageSize = 10;
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsError, setPostsError] = useState<string | null>(null);
+  const [authTick, setAuthTick] = useState(0);
 
   useEffect(() => {
     if (!slug) {
@@ -73,12 +76,22 @@ export default function BoardDetailPage() {
     };
   }, [slug]);
 
+  useEffect(() => {
+    setPostPage(1);
+  }, [slug]);
+
   const loadPosts = useCallback(
     async (boardId: number, page: number) => {
       setPostsLoading(true);
       setPostsError(null);
       try {
-        const body = await apiListPosts(page, postPageSize, boardId);
+        const token = getAccessToken();
+        const body = await apiListPosts(
+          page,
+          postPageSize,
+          boardId,
+          token,
+        );
         if (body.code !== API_SUCCESS_CODE || !body.data) {
           setPostsError(apiErrorMessage(body));
           setPosts([]);
@@ -99,8 +112,16 @@ export default function BoardDetailPage() {
 
   useEffect(() => {
     if (!board?.id) return;
-    loadPosts(board.id, 1);
-  }, [board?.id, loadPosts]);
+    void loadPosts(board.id, postPage);
+  }, [board?.id, postPage, authTick, loadPosts]);
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "access_token") setAuthTick((t) => t + 1);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   const totalPostPages = Math.max(1, Math.ceil(postTotal / postPageSize));
 
@@ -180,16 +201,41 @@ export default function BoardDetailPage() {
                 </p>
               ) : (
                 posts.map((post) => (
-                  <div key={post.id} className="px-4 py-4">
-                    <Link
-                      href={`/posts/${post.id}`}
-                      className="font-medium text-zinc-900 hover:underline dark:text-zinc-100"
-                    >
-                      {post.title}
-                    </Link>
-                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                      {previewText(post.content)}
-                    </p>
+                  <div
+                    key={post.id}
+                    className="flex gap-3 px-4 py-4 max-sm:flex-col max-sm:gap-2"
+                  >
+                    <PostVoteControls
+                      postId={post.id}
+                      score={post.score ?? 0}
+                      myVote={post.my_vote ?? null}
+                      accessToken={getAccessToken()}
+                      compact
+                      onUpdated={(patch) => {
+                        setPosts((prev) =>
+                          prev.map((p) =>
+                            p.id === post.id
+                              ? {
+                                  ...p,
+                                  score: patch.score,
+                                  my_vote: patch.my_vote,
+                                }
+                              : p,
+                          ),
+                        );
+                      }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        href={`/posts/${post.id}`}
+                        className="font-medium text-zinc-900 hover:underline dark:text-zinc-100"
+                      >
+                        {post.title}
+                      </Link>
+                      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                        {previewText(post.content)}
+                      </p>
+                    </div>
                   </div>
                 ))
               )}
@@ -205,7 +251,7 @@ export default function BoardDetailPage() {
                   <button
                     type="button"
                     disabled={postPage <= 1 || !board}
-                    onClick={() => board && loadPosts(board.id, postPage - 1)}
+                    onClick={() => setPostPage((p) => Math.max(1, p - 1))}
                     className="rounded border border-zinc-300 px-3 py-1 disabled:opacity-40 dark:border-zinc-600"
                   >
                     上一页
@@ -213,7 +259,9 @@ export default function BoardDetailPage() {
                   <button
                     type="button"
                     disabled={postPage >= totalPostPages || !board}
-                    onClick={() => board && loadPosts(board.id, postPage + 1)}
+                    onClick={() =>
+                      setPostPage((p) => Math.min(totalPostPages, p + 1))
+                    }
                     className="rounded border border-zinc-300 px-3 py-1 disabled:opacity-40 dark:border-zinc-600"
                   >
                     下一页

@@ -50,7 +50,7 @@ func CreatePost(p *models.ParamCreatePost, userID int64) error {
 	return nil
 }
 
-func ListPost(p *models.ParamPostList) (*models.PostListData, error) {
+func ListPost(p *models.ParamPostList, viewerID *int64) (*models.PostListData, error) {
 	p.Normalize()
 	var boardFilter *int64
 	if p.BoardID != nil {
@@ -81,6 +81,11 @@ func ListPost(p *models.ParamPostList) (*models.PostListData, error) {
 		v.Tags = Tags
 		list = append(list, v)
 	}
+	if viewerID != nil {
+		if err := attachPostMyVotes(list, *viewerID); err != nil {
+			return nil, err
+		}
+	}
 	return &models.PostListData{
 		List:     list,
 		Total:    total,
@@ -89,7 +94,7 @@ func ListPost(p *models.ParamPostList) (*models.PostListData, error) {
 	}, nil
 }
 
-func GetPost(id int64) (*models.PostView, error) {
+func GetPost(id int64, viewerID *int64) (*models.PostView, error) {
 	post, err := postgres.GetPostByID(id)
 	if err != nil {
 		return nil, err
@@ -100,7 +105,47 @@ func GetPost(id int64) (*models.PostView, error) {
 		return nil, err
 	}
 	v.Tags = Tags
+	if viewerID != nil {
+		slice := []models.PostView{v}
+		if err := attachPostMyVotes(slice, *viewerID); err != nil {
+			return nil, err
+		}
+		v = slice[0]
+	}
 	return &v, nil
+}
+
+func attachPostMyVotes(list []models.PostView, userID int64) error {
+	if len(list) == 0 {
+		return nil
+	}
+	ids := make([]int64, len(list))
+	for i := range list {
+		ids[i] = list[i].ID
+	}
+	m, err := postgres.GetPostVotesForUser(userID, ids)
+	if err != nil {
+		return err
+	}
+	for i := range list {
+		if val, ok := m[list[i].ID]; ok {
+			v := val
+			list[i].MyVote = &v
+		}
+	}
+	return nil
+}
+
+// VotePost 上票/下票/取消；返回最新 score 与 my_vote（取消后为 null）。
+func VotePost(postID, userID int64, value int8) (*models.PostVoteResult, error) {
+	score, myVote, err := postgres.ApplyPostVote(postID, userID, value)
+	if err != nil {
+		return nil, err
+	}
+	return &models.PostVoteResult{
+		Score:  score,
+		MyVote: myVote,
+	}, nil
 }
 
 // DeletePost 软删：作者本人或站点管理员；无主帖仅管理员可删；已软删返回 post not exist

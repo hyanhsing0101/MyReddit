@@ -12,6 +12,7 @@ type Post struct {
 	Content    string         `db:"content"`
 	AuthorID   sql.NullInt64  `db:"author_id"`
 	DeletedAt  sql.NullTime   `db:"deleted_at"`
+	Score      int64          `db:"score"`
 	CreateTime time.Time      `db:"create_time"`
 	UpdateTime time.Time      `db:"update_time"`
 	BoardSlug  sql.NullString `db:"board_slug"`
@@ -28,6 +29,8 @@ type PostView struct {
 	Title      string    `json:"title"`
 	Content    string    `json:"content"`
 	AuthorID   *int64    `json:"author_id"`
+	Score      int64     `json:"score"`
+	MyVote     *int8     `json:"my_vote"`
 	CreateTime time.Time `json:"create_time"`
 	UpdateTime time.Time `json:"update_time"`
 	Tags       []Tag     `json:"tags"`
@@ -39,6 +42,7 @@ func PostToView(p Post) PostView {
 		BoardID:    p.BoardID,
 		Title:      p.Title,
 		Content:    p.Content,
+		Score:      p.Score,
 		CreateTime: p.CreateTime,
 		UpdateTime: p.UpdateTime,
 	}
@@ -60,4 +64,10 @@ type PostListData struct {
 	Total    int64      `json:"total"`
 	Page     int        `json:"page"`
 	PageSize int        `json:"page_size"`
+}
+
+// PostVoteResult 投票接口返回：最新净分与当前用户投票状态（未投为 null）。
+type PostVoteResult struct {
+	Score  int64 `json:"score"`
+	MyVote *int8 `json:"my_vote"`
 }

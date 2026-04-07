@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { PostVoteControls } from "@/components/post-vote-controls";
 import {
   API_FORBIDDEN_CODE,
   API_POST_NOT_EXIST_CODE,
@@ -177,7 +178,8 @@ export default function PostDetailPage() {
       setError(null);
       setNotFound(false);
       try {
-        const body = await apiGetPost(id);
+        const token = getAccessToken();
+        const body = await apiGetPost(id, token ?? undefined);
         if (cancelled) return;
         if (body.code === API_POST_NOT_EXIST_CODE) {
           setNotFound(true);
@@ -337,9 +339,28 @@ export default function PostDetailPage() {
         <>
           <article>
             <div className="flex flex-wrap items-start justify-between gap-4">
-              <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-                {post.title}
-              </h1>
+              <div className="flex min-w-0 flex-1 flex-wrap items-start gap-4">
+                <PostVoteControls
+                  postId={post.id}
+                  score={post.score ?? 0}
+                  myVote={post.my_vote ?? null}
+                  accessToken={getAccessToken()}
+                  onUpdated={(patch) => {
+                    setPost((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            score: patch.score,
+                            my_vote: patch.my_vote,
+                          }
+                        : prev,
+                    );
+                  }}
+                />
+                <h1 className="min-w-0 flex-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
+                  {post.title}
+                </h1>
+              </div>
               {showDelete ? (
                 <button
                   type="button"
