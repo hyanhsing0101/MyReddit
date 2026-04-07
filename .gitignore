@@ -34,3 +34,13 @@ infra/docker/data/
 frontend/node_modules/
 frontend/.next/
 frontend/out/
+
+# Flutter app (mobile/；细则见 mobile/.gitignore、mobile/android/.gitignore)
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/**/doc/api/
+mobile/coverage/
+mobile/android/.gradle/
+mobile/**/.cxx/
