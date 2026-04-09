@@ -27,6 +27,7 @@ LIMIT $1 OFFSET $2;
 	return list, err
 }
 
+// CountTags 统计全站标签总数。
 func CountTags() (int64, error) {
 	var total int64
 	err := db.Get(&total, `SELECT COUNT(*) FROM "tag";`)

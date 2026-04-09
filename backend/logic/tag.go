@@ -5,6 +5,7 @@ import (
 	"myreddit/models"
 )
 
+// ListTags 分页获取标签列表。
 func ListTags(p *models.ParamTagList) (*models.TagListData, error) {
 	p.Normalize()
 	total, err := postgres.CountTags()

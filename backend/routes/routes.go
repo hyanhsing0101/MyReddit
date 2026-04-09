@@ -88,7 +88,7 @@ func SetupRouter(mode string) *gin.Engine {
 	// Postman：GET {{baseUrl}}/search?q=t1&scope=posts&post_limit=20&board_limit=10。
 	r.GET("/search", controller.SearchHandler)
 
-	// 任意登录用户：查看自己的权限
+	// 功能：任意登录用户查看自己的权限。
 	r.GET("/me/permissions", middleware.JWTAuthMiddleware(), controller.MePermissionsHandler)
 	// 功能：当前用户收藏的板块列表（按收藏时间倒序分页）。
 	// Postman：GET {{baseUrl}}/me/favorite-boards?page=1&page_size=20 · Bearer。
@@ -96,9 +96,9 @@ func SetupRouter(mode string) *gin.Engine {
 	// 功能：当前用户收藏的帖子列表（按收藏时间倒序分页）。
 	// Postman：GET {{baseUrl}}/me/favorite-posts?page=1&page_size=20 · Bearer。
 	r.GET("/me/favorite-posts", middleware.JWTAuthMiddleware(), controller.ListMyFavoritePostsHandler)
-	// 测试：仅登录
+	// 功能：调试接口，仅验证登录态。
 	r.GET("/debug/auth/any", middleware.JWTAuthMiddleware(), controller.DebugAuthAnyHandler)
-	// 测试：仅站点管理员（注意中间件顺序）
+	// 功能：调试接口，仅站点管理员可访问（注意中间件顺序）。
 	r.GET("/debug/auth/admin", middleware.JWTAuthMiddleware(), middleware.RequireSiteAdmin(), controller.DebugAuthAdminHandler)
 
 	// 功能：鉴权探活，成功返回纯文本 pong。

@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// CreatePostHandler 创建帖子并处理参数/业务错误映射。
 func CreatePostHandler(c *gin.Context) {
 	userID, err := GetCurrentUser(c)
 	if err != nil {
@@ -55,6 +56,7 @@ func CreatePostHandler(c *gin.Context) {
 	ResponseSuccess(c, nil)
 }
 
+// ListPostHandler 分页获取帖子列表（支持 board_id 与 sort）。
 func ListPostHandler(c *gin.Context) {
 	p := new(models.ParamPostList)
 	if err := c.ShouldBindQuery(p); err != nil {
@@ -79,6 +81,7 @@ func ListPostHandler(c *gin.Context) {
 	ResponseSuccess(c, data)
 }
 
+// GetPostHandler 获取单个帖子详情（可选附带当前用户状态）。
 func GetPostHandler(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
@@ -100,6 +103,7 @@ func GetPostHandler(c *gin.Context) {
 	ResponseSuccess(c, data)
 }
 
+// DeletePostHandler 软删帖子（作者本人或站点管理员）。
 func DeletePostHandler(c *gin.Context) {
 	userID, err := GetCurrentUser(c)
 	if err != nil {
@@ -129,6 +133,7 @@ func DeletePostHandler(c *gin.Context) {
 	ResponseSuccess(c, nil)
 }
 
+// UpdatePostHandler 编辑帖子内容与标签（作者本人或站点管理员）。
 func UpdatePostHandler(c *gin.Context) {
 	userID, err := GetCurrentUser(c)
 	if err != nil {

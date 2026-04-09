@@ -12,6 +12,7 @@ var ErrorPostNotExist = errors.New("post not exist")
 const postSelectCols = `p.id, p.board_id, p.title, p.content, p.author_id, p.deleted_at, p.score, p.create_time, p.update_time,
 		       b.slug as board_slug, b.name as board_name`
 
+// CreatePost 写入帖子并返回新帖 id。
 func CreatePost(post *models.Post) (int64, error) {
 	sqlStr := `
 		INSERT INTO "post" (board_id, title, content, author_id, create_time, update_time)
@@ -26,6 +27,7 @@ func CreatePost(post *models.Post) (int64, error) {
 	return id, err
 }
 
+// CountPosts 统计帖子总数（可按 board_id 过滤，且仅统计未软删帖子）。
 func CountPosts(boardID *int64) (int64, error) {
 	var n int64
 	var err error
@@ -38,6 +40,7 @@ func CountPosts(boardID *int64) (int64, error) {
 	return n, err
 }
 
+// ListPosts 按排序规则分页查询帖子列表（可按 board_id 过滤）。
 func ListPosts(boardID *int64, sort models.PostSort, limit, offset int) ([]models.Post, error) {
 	var list []models.Post
 	var err error
@@ -127,6 +130,7 @@ func GetPostByIDIncludingDeleted(id int64) (*models.Post, error) {
 	return &p, nil
 }
 
+// SoftDeletePost 软删帖子并更新更新时间；帖子不存在时返回 ErrorPostNotExist。
 func SoftDeletePost(id int64, at time.Time) error {
 	res, err := db.Exec(
 		`update "post" set deleted_at = $2, update_time = $2 where id = $1 and deleted_at is null`,
@@ -145,6 +149,7 @@ func SoftDeletePost(id int64, at time.Time) error {
 	return nil
 }
 
+// UpdatePostContent 更新帖子标题/正文与更新时间；帖子不存在时返回 ErrorPostNotExist。
 func UpdatePostContent(id int64, title, content string, at time.Time) error {
 	res, err := db.Exec(
 		`update "post" set title = $2, content = $3, update_time = $4 where id = $1 and deleted_at is null`,

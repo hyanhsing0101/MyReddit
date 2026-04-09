@@ -23,6 +23,7 @@ func encryptPassword(rawPassword, salt string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
+// SignUp 注册用户并写入认证信息。
 func SignUp(p *models.ParamSignUp) (err error) {
 	if err = postgres.CheckUserExist(p.Username); err != nil {
 		return err
@@ -122,6 +123,7 @@ func RefreshToken(refreshToken string) (models.TokenPair, error) {
 	}, nil
 }
 
+// MePermissions 返回当前用户权限视图（含站点管理员标记）。
 func MePermissions(userID int64) (*models.MePermissionsView, error) {
 	admin, err := postgres.IsSiteAdmin(userID)
 	if err != nil {

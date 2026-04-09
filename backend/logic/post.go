@@ -32,6 +32,7 @@ func calcHotScore(score int64, createdAt time.Time) float64 {
 	return float64(s) / math.Pow(hours+2.0, 1.8)
 }
 
+// CreatePost 创建帖子并同步维护标签与热榜缓存（缓存失败不影响主流程）。
 func CreatePost(p *models.ParamCreatePost, userID int64) error {
 	board, err := postgres.GetBoardByID(p.BoardID)
 	if err != nil {
@@ -67,6 +68,7 @@ func CreatePost(p *models.ParamCreatePost, userID int64) error {
 	return nil
 }
 
+// ListPost 分页获取帖子列表，并按登录态附加 my_vote / is_favorited。
 func ListPost(p *models.ParamPostList, viewerID *int64) (*models.PostListData, error) {
 	p.Normalize()
 	var boardFilter *int64
@@ -85,6 +87,7 @@ func ListPost(p *models.ParamPostList, viewerID *int64) (*models.PostListData, e
 	}
 	offset := (p.Page - 1) * p.PageSize
 	var posts []models.Post
+	// 全站 hot 优先走 Redis 热榜；分板块或其他排序直接走 PG。
 	if p.Sort == models.PostSortHot && boardFilter == nil {
 		cachedIDs, err := redisDao.GetHotPostIDs(p.Page, p.PageSize)
 		if err == nil && len(cachedIDs) > 0 {
@@ -112,6 +115,7 @@ func ListPost(p *models.ParamPostList, viewerID *int64) (*models.PostListData, e
 			return nil, err
 		}
 	}
+	// 批量取标签，避免逐帖查询导致 N+1。
 	postIDs := make([]int64, len(posts))
 	for i := range posts {
 		postIDs[i] = posts[i].ID
@@ -147,6 +151,7 @@ func ListPost(p *models.ParamPostList, viewerID *int64) (*models.PostListData, e
 	}, nil
 }
 
+// GetPost 获取单个帖子详情，并按登录态附加 my_vote / is_favorited。
 func GetPost(id int64, viewerID *int64) (*models.PostView, error) {
 	post, err := postgres.GetPostByID(id)
 	if err != nil {
@@ -171,6 +176,7 @@ func GetPost(id int64, viewerID *int64) (*models.PostView, error) {
 	return &v, nil
 }
 
+// attachPostMyVotes 批量附加当前用户对列表帖子投票状态。
 func attachPostMyVotes(list []models.PostView, userID int64) error {
 	if len(list) == 0 {
 		return nil
@@ -192,6 +198,7 @@ func attachPostMyVotes(list []models.PostView, userID int64) error {
 	return nil
 }
 
+// attachPostFavoriteFlags 批量附加当前用户对列表帖子的收藏状态。
 func attachPostFavoriteFlags(list []models.PostView, userID int64) error {
 	if len(list) == 0 {
 		return nil
@@ -300,6 +307,7 @@ func UpdatePost(postID, operatorUserID int64, p *models.ParamUpdatePost) error {
 	return nil
 }
 
+// AddPostFavorite 收藏帖子（帖子不存在时返回错误）。
 func AddPostFavorite(userID, postID int64) error {
 	if _, err := postgres.GetPostByID(postID); err != nil {
 		return err
@@ -307,6 +315,7 @@ func AddPostFavorite(userID, postID int64) error {
 	return postgres.AddPostFavorite(userID, postID)
 }
 
+// RemovePostFavorite 取消用户对帖子的收藏。
 func RemovePostFavorite(userID, postID int64) error {
 	if _, err := postgres.GetPostByID(postID); err != nil {
 		return err
@@ -314,6 +323,7 @@ func RemovePostFavorite(userID, postID int64) error {
 	return postgres.RemovePostFavorite(userID, postID)
 }
 
+// ListMyFavoritePosts 按收藏时间倒序分页返回当前用户收藏帖子。
 func ListMyFavoritePosts(userID int64, p *models.ParamFavoritePostList) (*models.PostFavoriteListData, error) {
 	p.Normalize()
 	total, err := postgres.CountPostFavoritesByUser(userID)
