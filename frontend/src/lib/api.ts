@@ -86,15 +86,20 @@ export type PostListPayload = {
   page_size: number;
 };
 
+/** 与后端 GET /posts?sort= 一致 */
+export type PostSort = "new" | "hot" | "top";
+
 export async function apiListPosts(
   page = 1,
   pageSize = 10,
   boardId?: number,
   accessToken?: string | null,
+  sort: PostSort = "new",
 ): Promise<ApiResponse<PostListPayload>> {
   const q = new URLSearchParams({
     page: String(page),
     page_size: String(pageSize),
+    sort,
   });
   if (boardId != null && boardId >= 1) {
     q.set("board_id", String(boardId));
@@ -270,6 +275,22 @@ export async function apiCreatePost(
   payload: { board_id: number; tag_ids: number[]; title: string; content: string },
 ): Promise<ApiResponse<null>> {
   const res = await fetch(`${API_BASE}/post`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  return parseJson<null>(res);
+}
+
+export async function apiUpdatePost(
+  accessToken: string,
+  postId: number,
+  payload: { tag_ids: number[]; title: string; content: string },
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/posts/${postId}/edit`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

@@ -28,8 +28,22 @@ type TokenPair struct {
 // 帖子
 // =============================================================================
 
+type PostSort string
+
+const (
+	PostSortNew PostSort = "new"
+	PostSortHot PostSort = "hot"
+	PostSortTop PostSort = "top"
+)
+
 type ParamCreatePost struct {
 	BoardID int64   `json:"board_id" binding:"required"`
+	TagIDs  []int64 `json:"tag_ids" binding:"required"`
+	Title   string  `json:"title" binding:"required"`
+	Content string  `json:"content" binding:"required"`
+}
+
+type ParamUpdatePost struct {
 	TagIDs  []int64 `json:"tag_ids" binding:"required"`
 	Title   string  `json:"title" binding:"required"`
 	Content string  `json:"content" binding:"required"`
@@ -39,6 +53,7 @@ type ParamPostList struct {
 	Page     int    `form:"page"`
 	PageSize int    `form:"page_size"`
 	BoardID  *int64 `form:"board_id"`
+	Sort     PostSort `form:"sort"`
 }
 
 func (p *ParamPostList) Normalize() {
@@ -50,6 +65,16 @@ func (p *ParamPostList) Normalize() {
 	}
 	if p.PageSize > 100 {
 		p.PageSize = 100
+	}
+	switch p.Sort {
+	case PostSortNew:
+		p.Sort = PostSortNew
+	case PostSortHot:
+		p.Sort = PostSortHot
+	case PostSortTop:
+		p.Sort = PostSortTop
+	default:
+		p.Sort = PostSortNew
 	}
 }
 

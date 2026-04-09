@@ -407,6 +407,14 @@ export default function PostDetailPage() {
                     );
                   }}
                 />
+                {showDelete ? (
+                  <Link
+                    href={`/posts/${post.id}/edit`}
+                    className="shrink-0 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-600"
+                  >
+                    编辑
+                  </Link>
+                ) : null}
               </div>
               {showDelete ? (
                 <button

@@ -128,3 +128,48 @@ func DeletePostHandler(c *gin.Context) {
 	}
 	ResponseSuccess(c, nil)
 }
+
+func UpdatePostHandler(c *gin.Context) {
+	userID, err := GetCurrentUser(c)
+	if err != nil {
+		ResponseError(c, CodeNeedLogin)
+		return
+	}
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id < 1 {
+		zap.L().Error("Update Post With Invalid Param", zap.String("id", idStr))
+		ResponseError(c, CodeInvalidParam)
+		return
+	}
+	p := new(models.ParamUpdatePost)
+	if err := c.ShouldBindJSON(&p); err != nil {
+		zap.L().Error("Update Post With Invalid Body", zap.Error(err))
+		errs, ok := err.(validator.ValidationErrors)
+		if !ok {
+			ResponseError(c, CodeInvalidParam)
+			return
+		}
+		ResponseErrorWithMsg(c, CodeInvalidParam, errs.Translate(trans))
+		return
+	}
+	if err := logic.UpdatePost(id, userID, p); err != nil {
+		if errors.Is(err, postgres.ErrorPostNotExist) {
+			ResponseError(c, CodePostNotExist)
+			return
+		}
+		if errors.Is(err, postgres.ErrorTagNotExist) ||
+			errors.Is(err, logic.ErrTagCountExceedsMaxLimit) {
+			ResponseErrorWithMsg(c, CodeInvalidParam, err.Error())
+			return
+		}
+		if errors.Is(err, logic.ErrEditPostForbidden) {
+			ResponseError(c, CodeForbidden)
+			return
+		}
+		zap.L().Error("Update Post Failed", zap.Error(err), zap.Int64("id", id))
+		ResponseError(c, CodeServerBusy)
+		return
+	}
+	ResponseSuccess(c, nil)
+}

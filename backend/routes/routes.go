@@ -45,6 +45,9 @@ func SetupRouter(mode string) *gin.Engine {
 	// 功能：登录用户对帖子投票：Body {"value":1} 上票，{"value":-1} 下票，{"value":0} 取消。
 	// Postman：POST {{baseUrl}}/posts/1/vote · Bearer · JSON 如上。
 	r.POST("/posts/:id/vote", middleware.JWTAuthMiddleware(), controller.VotePostHandler)
+	// 功能：编辑帖子；作者可编辑自己的帖，站点管理员可编辑任意帖；已删帖不可编辑。
+	// Postman：POST {{baseUrl}}/posts/1/edit · Bearer · Body {"title":"新标题","content":"新正文","tag_ids":[1,2]}。
+	r.POST("/posts/:id/edit", middleware.JWTAuthMiddleware(), controller.UpdatePostHandler)
 	// 功能：登录用户收藏帖子（重复请求幂等）。
 	// Postman：POST {{baseUrl}}/posts/1/favorite · Bearer。
 	r.POST("/posts/:id/favorite", middleware.JWTAuthMiddleware(), controller.AddPostFavoriteHandler)
@@ -54,8 +57,8 @@ func SetupRouter(mode string) *gin.Engine {
 	// 功能：软删帖子；作者可删自己的帖，站点管理员可删任意帖；无主帖仅管理员可删。
 	// Postman：DELETE {{baseUrl}}/posts/1 · Bearer。
 	r.DELETE("/posts/:id", middleware.JWTAuthMiddleware(), controller.DeletePostHandler)
-	// 功能：分页帖子列表；可选 board_id 只拉该板帖子。
-	// Postman：GET {{baseUrl}}/posts?page=1&page_size=10 · 可选 &board_id=1。可选 Bearer：带合法 access_token 时每条含 my_vote / is_favorited。
+	// 功能：分页帖子列表；可选 board_id 只拉该板帖子；sort 支持 new|top|hot（默认 new）。
+	// Postman：GET {{baseUrl}}/posts?page=1&page_size=10&sort=hot · sort=new|hot|top；可选 &board_id=1。前端首页/板块「最新·热门·高分」与此一致。可选 Bearer：带合法 access_token 时每条含 my_vote / is_favorited。
 	r.GET("/posts", middleware.OptionalAuthMiddleware(), controller.ListPostHandler)
 
 	// 功能：分页获取全站标签。

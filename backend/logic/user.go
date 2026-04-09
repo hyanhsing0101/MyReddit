@@ -1,6 +1,8 @@
 package logic
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"errors"
 	"myreddit/dao/postgres"
 	redisDao "myreddit/dao/redis"
@@ -9,6 +11,18 @@ import (
 	"myreddit/pkg/snowflake"
 )
 
+const passwordSecret = "hyanhsing0101"
+
+var ErrInvalidPassword = errors.New("wrong password")
+
+func encryptPassword(rawPassword, salt string) string {
+	h := md5.New()
+	h.Write([]byte(passwordSecret))
+	h.Write([]byte(salt))
+	h.Write([]byte(rawPassword))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
 func SignUp(p *models.ParamSignUp) (err error) {
 	if err = postgres.CheckUserExist(p.Username); err != nil {
 		return err
@@ -16,13 +30,8 @@ func SignUp(p *models.ParamSignUp) (err error) {
 
 	userID := snowflake.GenID()
 
-	u := models.User{
-		UserID:   userID,
-		Username: p.Username,
-		Password: p.Password,
-	}
-
-	if err := postgres.InsertUser(&u); err != nil {
+	passwordHash := encryptPassword(p.Password, p.Username)
+	if err := postgres.InsertUser(userID, p.Username, passwordHash); err != nil {
 		return err
 	}
 	return nil
@@ -31,20 +40,20 @@ func SignUp(p *models.ParamSignUp) (err error) {
 // Login 改为返回 TokenPair（access + refresh）
 // refresh token 会在 Redis 中落库（并可轮换）
 func Login(p *models.ParamLogin) (models.TokenPair, error) {
-	user := &models.User{
-		Username: p.Username,
-		Password: p.Password,
-	}
-	if err := postgres.Login(user); err != nil {
+	authRow, err := postgres.GetUserAuthByUsername(p.Username)
+	if err != nil {
 		return models.TokenPair{}, err
 	}
+	if encryptPassword(p.Password, authRow.Username) != authRow.Password {
+		return models.TokenPair{}, ErrInvalidPassword
+	}
 
-	accessToken, err := jwt.GenAccessToken(user.UserID, user.Username)
+	accessToken, err := jwt.GenAccessToken(authRow.UserID, authRow.Username)
 	if err != nil {
 		return models.TokenPair{}, err
 	}
 
-	refreshToken, jti, err := jwt.GenRefreshToken(user.UserID, user.Username)
+	refreshToken, jti, err := jwt.GenRefreshToken(authRow.UserID, authRow.Username)
 	if err != nil {
 		return models.TokenPair{}, err
 	}

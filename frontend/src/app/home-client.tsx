@@ -13,6 +13,7 @@ import {
   tagDisplayLabel,
   type BoardItem,
   type PostItem,
+  type PostSort,
   type SearchScope,
 } from "@/lib/api";
 import {
@@ -37,6 +38,7 @@ export default function HomeClient() {
   const [listPage, setListPage] = useState(1);
   const [listTotal, setListTotal] = useState(0);
   const [listPageSize] = useState(10);
+  const [listSort, setListSort] = useState<PostSort>("hot");
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
 
@@ -61,7 +63,13 @@ export default function HomeClient() {
     setListError(null);
     try {
       const token = getAccessToken();
-      const body = await apiListPosts(page, listPageSize, undefined, token);
+      const body = await apiListPosts(
+        page,
+        listPageSize,
+        undefined,
+        token,
+        listSort,
+      );
       if (body.code !== API_SUCCESS_CODE || !body.data) {
         setListError(apiErrorMessage(body));
         setPosts([]);
@@ -76,11 +84,16 @@ export default function HomeClient() {
     } finally {
       setListLoading(false);
     }
-  }, [listPageSize]);
+  }, [listPageSize, listSort]);
 
   useEffect(() => {
     void loadPosts(listPage);
-  }, [listPage, loggedIn, loadPosts]);
+  }, [listPage, loggedIn, listSort, loadPosts]);
+
+  function handleListSort(next: PostSort) {
+    setListSort(next);
+    setListPage(1);
+  }
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -153,7 +166,7 @@ export default function HomeClient() {
           MyReddit
         </h1>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          最新帖子 · 登录后可发帖与 Ping
+          全站帖子流（最新 / 热门 / 高分）· 登录后可发帖与 Ping
         </p>
       </div>
 
@@ -290,10 +303,32 @@ export default function HomeClient() {
       </section>
 
       <section className="rounded-xl border border-zinc-200 dark:border-zinc-800">
-        <div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+        <div className="flex flex-col gap-3 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
             帖子
           </h2>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                { id: "new" as const, label: "最新" },
+                { id: "hot" as const, label: "热门" },
+                { id: "top" as const, label: "高分" },
+              ] as const
+            ).map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => handleListSort(id)}
+                className={
+                  listSort === id
+                    ? "rounded-lg border border-zinc-900 bg-zinc-900 px-3 py-1 text-xs text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                    : "rounded-lg border border-zinc-300 px-3 py-1 text-xs dark:border-zinc-600"
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
           {listLoading ? (

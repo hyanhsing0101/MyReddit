@@ -1,19 +1,13 @@
 package postgres
 
 import (
-	"crypto/md5"
 	"database/sql"
-	"encoding/hex"
 	"errors"
-	"myreddit/models"
 )
 
-const secret = "hyanhsing0101"
-
 var (
-	ErrorUserExist       = errors.New("User Exist")
-	ErrorUserNotExist    = errors.New("User Not Exist")
-	ErrorInvalidPassword = errors.New("Wrong Password")
+	ErrorUserExist    = errors.New("User Exist")
+	ErrorUserNotExist = errors.New("User Not Exist")
 )
 
 func CheckUserExist(username string) (err error) {
@@ -37,38 +31,32 @@ func CheckUserByIDAndName(userID int64, username string) (bool, error) {
 	return count == 1, nil
 }
 
-func Login(user *models.User) (err error) {
-	oPassword := user.Password
-	sqlStr := `select user_id, username, password from "user" where username = $1`
-	err = db.Get(user, sqlStr, user.Username)
-	if err == sql.ErrNoRows {
-		return ErrorUserNotExist
-	}
-	if err != nil {
-		return err
-	}
-	password := encryptPassword(oPassword, user.Username)
-	if password != user.Password {
-		return ErrorInvalidPassword
-	}
-	return
+// UserAuthRow 仅用于登录鉴权所需字段读取。
+type UserAuthRow struct {
+	UserID   int64  `db:"user_id"`
+	Username string `db:"username"`
+	Password string `db:"password"`
 }
 
-func InsertUser(user *models.User) error {
-	password := encryptPassword(user.Password, user.Username)
+func GetUserAuthByUsername(username string) (*UserAuthRow, error) {
+	var row UserAuthRow
+	sqlStr := `select user_id, username, password from "user" where username = $1`
+	err := db.Get(&row, sqlStr, username)
+	if err == sql.ErrNoRows {
+		return nil, ErrorUserNotExist
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
+
+func InsertUser(userID int64, username, passwordHash string) error {
 	sqlStr := `insert into "user" (user_id, username, password) values ($1, $2, $3)`
-	if _, err := db.Exec(sqlStr, user.UserID, user.Username, password); err != nil {
+	if _, err := db.Exec(sqlStr, userID, username, passwordHash); err != nil {
 		return err
 	}
 	return nil
-}
-
-func encryptPassword(opassword string, salt string) string {
-	h := md5.New()
-	h.Write([]byte(secret))
-	h.Write([]byte(salt))
-	h.Write([]byte(opassword))
-	return hex.EncodeToString(h.Sum(nil))
 }
 
 // IsSiteAdmin 判断用户是否为站长

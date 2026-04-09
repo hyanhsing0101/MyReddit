@@ -13,6 +13,7 @@ import {
   apiListPosts,
   type BoardItem,
   type PostItem,
+  type PostSort,
 } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth-storage";
 
@@ -39,6 +40,7 @@ export default function BoardDetailClient() {
 
   const [posts, setPosts] = useState<PostItem[]>([]);
   const [postPage, setPostPage] = useState(1);
+  const [postSort, setPostSort] = useState<PostSort>("new");
   const [postTotal, setPostTotal] = useState(0);
   const postPageSize = 10;
   const [postsLoading, setPostsLoading] = useState(false);
@@ -101,6 +103,7 @@ export default function BoardDetailClient() {
           postPageSize,
           boardId,
           token,
+          postSort,
         );
         if (body.code !== API_SUCCESS_CODE || !body.data) {
           setPostsError(apiErrorMessage(body));
@@ -117,13 +120,13 @@ export default function BoardDetailClient() {
         setPostsLoading(false);
       }
     },
-    [postPageSize],
+    [postPageSize, postSort],
   );
 
   useEffect(() => {
     if (!board?.id) return;
     void loadPosts(board.id, postPage);
-  }, [board?.id, postPage, authTick, loadPosts]);
+  }, [board?.id, postPage, authTick, postSort, loadPosts]);
 
   const totalPostPages = Math.max(1, Math.ceil(postTotal / postPageSize));
 
@@ -196,10 +199,35 @@ export default function BoardDetailClient() {
           )}
 
           <section className="mt-10 rounded-xl border border-zinc-200 dark:border-zinc-800">
-            <div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+            <div className="flex flex-col gap-3 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
                 本板帖子
               </h2>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    { id: "new" as const, label: "最新" },
+                    { id: "hot" as const, label: "热门" },
+                    { id: "top" as const, label: "高分" },
+                  ] as const
+                ).map(({ id, label }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => {
+                      setPostSort(id);
+                      setPostPage(1);
+                    }}
+                    className={
+                      postSort === id
+                        ? "rounded-lg border border-zinc-900 bg-zinc-900 px-3 py-1 text-xs text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                        : "rounded-lg border border-zinc-300 px-3 py-1 text-xs dark:border-zinc-600"
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
               {postsLoading ? (
