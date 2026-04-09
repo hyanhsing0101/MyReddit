@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"myreddit/models"
 	"time"
-
-	"github.com/lib/pq"
 )
 
 func AddBoardFavorite(userID, boardID int64) error {
@@ -39,7 +37,7 @@ func ListBoardIDsFavoritedByUser(userID int64, boardIDs []int64) (map[int64]stru
 	err := db.Select(&favIDs, `
 		SELECT board_id FROM board_favorite
 		WHERE user_id = $1 AND board_id = ANY($2)
-	`, userID, pq.Array(boardIDs))
+	`, userID, Int64Array(boardIDs))
 	if err != nil {
 		return nil, err
 	}

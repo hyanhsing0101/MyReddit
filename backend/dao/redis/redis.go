@@ -3,14 +3,12 @@ package redis
 import (
 	"fmt"
 	"myreddit/settings"
-
-	"github.com/go-redis/redis"
 )
 
-var rdb *redis.Client
+var rdb *Client
 
 func Init(cfg *settings.RedisConfig) (err error) {
-	rdb = redis.NewClient(&redis.Options{
+	rdb = NewClient(&Options{
 		Addr: fmt.Sprintf("%s:%d",
 			cfg.Host,
 			cfg.Port,

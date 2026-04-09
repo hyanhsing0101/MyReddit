@@ -5,7 +5,6 @@ import (
 	"myreddit/settings"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 	"go.uber.org/zap"
 )
 

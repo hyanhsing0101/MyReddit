@@ -3,8 +3,6 @@ package postgres
 import (
 	"database/sql"
 	"time"
-
-	"github.com/lib/pq"
 )
 
 // GetCommentVotesForUser 当前用户对若干评论的投票；未投的 id 不在 map 中。
@@ -20,7 +18,7 @@ func GetCommentVotesForUser(userID int64, commentIDs []int64) (map[int64]int8, e
 	var rows []row
 	err := db.Select(&rows,
 		`SELECT comment_id, value FROM comment_vote WHERE user_id = $1 AND comment_id = ANY($2)`,
-		userID, pq.Array(commentIDs),
+		userID, Int64Array(commentIDs),
 	)
 	if err != nil {
 		return nil, err

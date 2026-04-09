@@ -8,6 +8,12 @@ import (
 )
 
 var ErrorTagNotExist = errors.New("tag not exist")
+
+type postTagRow struct {
+	PostID int64 `db:"post_id"`
+	models.Tag
+}
+
 // ListTags 分页列出全站标签
 func ListTags(limit, offset int) ([]models.Tag, error) {
 	list := make([]models.Tag, 0)
@@ -39,6 +45,36 @@ ORDER BY t.id ASC;
 `
 	err := db.Select(&list, sqlStr, postID)
 	return list, err
+}
+
+// GetTagsByPostIDs 批量获取多帖的标签；每个帖子内标签按 tag.id 升序。
+func GetTagsByPostIDs(postIDs []int64) (map[int64][]models.Tag, error) {
+	out := make(map[int64][]models.Tag)
+	if len(postIDs) == 0 {
+		return out, nil
+	}
+	sqlStr := `
+SELECT pt.post_id, t.id, t.slug, t.name, COALESCE(t.description, '') AS description, t.create_time, t.update_time
+FROM "post_tag" pt
+JOIN "tag" t ON t.id = pt.tag_id
+WHERE pt.post_id = ANY($1)
+ORDER BY pt.post_id ASC, t.id ASC;
+`
+	var rows []postTagRow
+	if err := db.Select(&rows, sqlStr, Int64Array(postIDs)); err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		out[r.PostID] = append(out[r.PostID], models.Tag{
+			ID:          r.ID,
+			Slug:        r.Slug,
+			Name:        r.Name,
+			Description: r.Description,
+			CreateTime:  r.CreateTime,
+			UpdateTime:  r.UpdateTime,
+		})
+	}
+	return out, nil
 }
 
 // ValidateTagIDs 去重并校验 tag_id 全都存在

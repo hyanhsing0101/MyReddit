@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"time"
-
-	"github.com/lib/pq"
 )
 
 var ErrorInvalidVoteValue = errors.New("invalid vote value")
@@ -23,7 +21,7 @@ func GetPostVotesForUser(userID int64, postIDs []int64) (map[int64]int8, error) 
 	var rows []row
 	err := db.Select(&rows,
 		`SELECT post_id, value FROM post_vote WHERE user_id = $1 AND post_id = ANY($2)`,
-		userID, pq.Array(postIDs),
+		userID, Int64Array(postIDs),
 	)
 	if err != nil {
 		return nil, err

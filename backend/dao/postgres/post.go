@@ -5,8 +5,6 @@ import (
 	"errors"
 	"myreddit/models"
 	"time"
-
-	"github.com/lib/pq"
 )
 
 var ErrorPostNotExist = errors.New("post not exist")
@@ -74,7 +72,7 @@ func ListPostsByIDsOrdered(ids []int64) ([]models.Post, error) {
 		ORDER BY x.ord;
 	`
 	var list []models.Post
-	if err := db.Select(&list, sqlStr, pq.Array(ids)); err != nil {
+	if err := db.Select(&list, sqlStr, Int64Array(ids)); err != nil {
 		return nil, err
 	}
 	return list, nil

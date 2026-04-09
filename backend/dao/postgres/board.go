@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"myreddit/models"
-
-	"github.com/lib/pq"
 )
 
 var (
@@ -73,8 +71,7 @@ func CreateBoard(b *models.Board) error {
 		b.CreateTime, b.UpdateTime,
 	)
 	if err != nil {
-		var pqErr *pq.Error
-		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+		if IsUniqueViolation(err) {
 			return ErrorBoardSlugTaken
 		}
 		return err

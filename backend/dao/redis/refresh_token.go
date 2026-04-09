@@ -5,8 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"time"
-
-	goredis "github.com/go-redis/redis"
 )
 
 func refreshTokenKey(jti string) string {
@@ -29,7 +27,7 @@ func VerifyRefreshToken(jti string, refreshToken string) (bool, error) {
 	key := refreshTokenKey(jti)
 	stored, err := rdb.Get(key).Result()
 	if err != nil {
-		if err == goredis.Nil {
+		if IsNil(err) {
 			return false, nil
 		}
 		return false, err

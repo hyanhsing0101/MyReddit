@@ -112,14 +112,23 @@ func ListPost(p *models.ParamPostList, viewerID *int64) (*models.PostListData, e
 			return nil, err
 		}
 	}
+	postIDs := make([]int64, len(posts))
+	for i := range posts {
+		postIDs[i] = posts[i].ID
+	}
+	tagsByPost, err := postgres.GetTagsByPostIDs(postIDs)
+	if err != nil {
+		return nil, err
+	}
+
 	list := make([]models.PostView, 0, len(posts))
 	for _, row := range posts {
 		v := models.PostToView(row)
-		Tags, err := postgres.GetTagsByPostID(row.ID)
-		if err != nil {
-			return nil, err
+		if t := tagsByPost[row.ID]; t != nil {
+			v.Tags = t
+		} else {
+			v.Tags = []models.Tag{}
 		}
-		v.Tags = Tags
 		list = append(list, v)
 	}
 	if viewerID != nil {

@@ -3,8 +3,6 @@ package postgres
 import (
 	"myreddit/models"
 	"time"
-
-	"github.com/lib/pq"
 )
 
 func AddPostFavorite(userID, postID int64) error {
@@ -43,7 +41,7 @@ func ListPostIDsFavoritedByUser(userID int64, postIDs []int64) (map[int64]struct
 	err := db.Select(&favIDs, `
 		SELECT post_id FROM post_favorite
 		WHERE user_id = $1 AND post_id = ANY($2)
-	`, userID, pq.Array(postIDs))
+	`, userID, Int64Array(postIDs))
 	if err != nil {
 		return nil, err
 	}

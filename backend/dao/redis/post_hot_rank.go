@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"time"
-
-	goredis "github.com/go-redis/redis"
 )
 
 const (
@@ -47,9 +45,9 @@ func SetHotPostScores(scores map[int64]float64) error {
 	if len(scores) == 0 {
 		return nil
 	}
-	zs := make([]goredis.Z, 0, len(scores))
+	zs := make([]Z, 0, len(scores))
 	for id, score := range scores {
-		zs = append(zs, goredis.Z{Score: score, Member: fmt.Sprintf("%d", id)})
+		zs = append(zs, Z{Score: score, Member: fmt.Sprintf("%d", id)})
 	}
 	if err := rdb.ZAdd(postHotRankKey, zs...).Err(); err != nil {
 		return err
@@ -65,7 +63,7 @@ func CountHotPosts() (int64, error) {
 
 // UpsertHotPost 更新/写入单个帖子的热度分，并刷新 TTL。
 func UpsertHotPost(postID int64, score float64) error {
-	if err := rdb.ZAdd(postHotRankKey, goredis.Z{
+	if err := rdb.ZAdd(postHotRankKey, Z{
 		Score:  score,
 		Member: fmt.Sprintf("%d", postID),
 	}).Err(); err != nil {
