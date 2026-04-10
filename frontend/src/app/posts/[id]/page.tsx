@@ -7,7 +7,10 @@ import { CommentVoteControls } from "@/components/comment-vote-controls";
 import { PostFavoriteButton } from "@/components/post-favorite-button";
 import { PostVoteControls } from "@/components/post-vote-controls";
 import {
+  API_COMMENT_NOT_EXIST_CODE,
   API_FORBIDDEN_CODE,
+  API_INVALID_COMMENT_PARENT_CODE,
+  API_PARENT_COMMENT_MISMATCH_CODE,
   API_POST_NOT_EXIST_CODE,
   API_POST_SEALED_CODE,
   API_SUCCESS_CODE,
@@ -419,8 +422,25 @@ export default function PostDetailPage() {
         ...(replyTo ? { parent_id: replyTo.id } : {}),
       });
       if (body.code !== API_SUCCESS_CODE) {
+        if (body.code === API_POST_NOT_EXIST_CODE) {
+          setNotFound(true);
+          setPost(null);
+          return;
+        }
         if (body.code === API_POST_SEALED_CODE) {
           setCommentSubmitError("该帖已封禁，暂不可评论");
+          return;
+        }
+        if (body.code === API_COMMENT_NOT_EXIST_CODE) {
+          setCommentSubmitError("父评论不存在，可能已被删除");
+          return;
+        }
+        if (body.code === API_PARENT_COMMENT_MISMATCH_CODE) {
+          setCommentSubmitError("父评论不属于当前帖子，请刷新后重试");
+          return;
+        }
+        if (body.code === API_INVALID_COMMENT_PARENT_CODE) {
+          setCommentSubmitError("非法父评论参数");
           return;
         }
         setCommentSubmitError(apiErrorMessage(body));

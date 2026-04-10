@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { API_SUCCESS_CODE, apiCreateBoard, apiErrorMessage } from "@/lib/api";
+import {
+  API_BOARD_SLUG_TAKEN_CODE,
+  API_SUCCESS_CODE,
+  apiCreateBoard,
+  apiErrorMessage,
+} from "@/lib/api";
 import { getAccessToken } from "@/lib/auth-storage";
 
 export default function NewBoardPage() {
@@ -37,6 +42,10 @@ export default function NewBoardPage() {
         visibility,
       });
       if (body.code !== API_SUCCESS_CODE) {
+        if (body.code === API_BOARD_SLUG_TAKEN_CODE) {
+          setError("该 slug 已被占用，请更换后重试");
+          return;
+        }
         setError(apiErrorMessage(body));
         return;
       }

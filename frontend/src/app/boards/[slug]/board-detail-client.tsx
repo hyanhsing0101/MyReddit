@@ -7,6 +7,7 @@ import { BoardFavoriteButton } from "@/components/board-favorite-button";
 import { PostFavoriteButton } from "@/components/post-favorite-button";
 import { PostVoteControls } from "@/components/post-vote-controls";
 import {
+  API_BOARD_NOT_EXIST_CODE,
   API_SUCCESS_CODE,
   apiErrorMessage,
   apiGetBoardBySlug,
@@ -68,6 +69,11 @@ export default function BoardDetailClient() {
       try {
         const body = await apiGetBoardBySlug(slug, getAccessToken());
         if (cancelled) return;
+        if (body.code === API_BOARD_NOT_EXIST_CODE) {
+          setError("板块不存在或已删除");
+          setBoard(null);
+          return;
+        }
         if (body.code !== API_SUCCESS_CODE || !body.data) {
           setError(apiErrorMessage(body));
           setBoard(null);

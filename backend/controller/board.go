@@ -102,5 +102,5 @@ func CreateBoardHandler(c *gin.Context) {
 		ResponseError(c, CodeServerBusy)
 		return
 	}
-	ResponseSuccess(c, nil)
+	ResponseCreated(c, nil)
 }

@@ -7,6 +7,8 @@ import {
   API_FORBIDDEN_CODE,
   API_POST_NOT_EXIST_CODE,
   API_SUCCESS_CODE,
+  API_TAG_COUNT_EXCEEDED_CODE,
+  API_TAG_NOT_EXIST_CODE,
   apiErrorMessage,
   apiGetPost,
   apiListTags,
@@ -144,8 +146,20 @@ export default function EditPostPage() {
         content,
         tag_ids: selectedTagIds,
       });
+      if (body.code === API_POST_NOT_EXIST_CODE) {
+        setError("帖子不存在或已删除");
+        return;
+      }
       if (body.code === API_FORBIDDEN_CODE) {
         setError("无权限编辑该帖");
+        return;
+      }
+      if (body.code === API_TAG_NOT_EXIST_CODE) {
+        setError("包含无效标签，请刷新标签后重试");
+        return;
+      }
+      if (body.code === API_TAG_COUNT_EXCEEDED_CODE) {
+        setError("标签数量超限，最多 5 个");
         return;
       }
       if (body.code !== API_SUCCESS_CODE) {

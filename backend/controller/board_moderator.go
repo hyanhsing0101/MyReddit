@@ -98,9 +98,13 @@ func RemoveBoardModeratorHandler(c *gin.Context) {
 		case errors.Is(err, postgres.ErrorBoardNotExist):
 			ResponseError(c, CodeBoardNotExist)
 		case errors.Is(err, logic.ErrBoardModeratorNotExist):
-			ResponseError(c, CodeForbidden)
+			ResponseError(c, CodeBoardModeratorNotExist)
 		case errors.Is(err, logic.ErrManageBoardModeratorsForbidden),
 			errors.Is(err, logic.ErrCannotRemoveLastOwner):
+			if errors.Is(err, logic.ErrCannotRemoveLastOwner) {
+				ResponseError(c, CodeCannotRemoveLastOwner)
+				break
+			}
 			ResponseError(c, CodeForbidden)
 		default:
 			zap.L().Error("RemoveBoardModerator Failed", zap.Error(err), zap.Int64("board_id", boardID), zap.Int64("target_user_id", targetUserID))
@@ -141,9 +145,13 @@ func UpdateBoardModeratorRoleHandler(c *gin.Context) {
 		case errors.Is(err, postgres.ErrorBoardNotExist):
 			ResponseError(c, CodeBoardNotExist)
 		case errors.Is(err, logic.ErrBoardModeratorNotExist):
-			ResponseError(c, CodeForbidden)
+			ResponseError(c, CodeBoardModeratorNotExist)
 		case errors.Is(err, logic.ErrManageBoardModeratorsForbidden),
 			errors.Is(err, logic.ErrCannotRemoveLastOwner):
+			if errors.Is(err, logic.ErrCannotRemoveLastOwner) {
+				ResponseError(c, CodeCannotRemoveLastOwner)
+				break
+			}
 			ResponseError(c, CodeForbidden)
 		default:
 			zap.L().Error("UpdateBoardModeratorRole Failed", zap.Error(err), zap.Int64("board_id", boardID), zap.Int64("target_user_id", targetUserID))

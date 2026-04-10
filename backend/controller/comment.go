@@ -65,15 +65,15 @@ func CreateCommentHandler(c *gin.Context) {
 			return
 		}
 		if errors.Is(err, postgres.ErrorCommentNotExist) {
-			ResponseErrorWithMsg(c, CodeInvalidParam, "parent comment not exist")
+			ResponseError(c, CodeCommentNotExist)
 			return
 		}
 		if errors.Is(err, logic.ErrParentCommentMismatch) {
-			ResponseErrorWithMsg(c, CodeInvalidParam, "parent not in this post")
+			ResponseError(c, CodeParentCommentMismatch)
 			return
 		}
 		if errors.Is(err, logic.ErrInvalidCommentParent) {
-			ResponseErrorWithMsg(c, CodeInvalidParam, "invalid parent_id")
+			ResponseError(c, CodeInvalidCommentParent)
 			return
 		}
 		if errors.Is(err, logic.ErrPostSealed) {
@@ -84,5 +84,5 @@ func CreateCommentHandler(c *gin.Context) {
 		ResponseError(c, CodeServerBusy)
 		return
 	}
-	ResponseSuccess(c, nil)
+	ResponseCreated(c, nil)
 }

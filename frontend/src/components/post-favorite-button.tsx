@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import {
+  API_NEED_LOGIN_CODE,
+  API_POST_NOT_EXIST_CODE,
   API_SUCCESS_CODE,
   apiAddPostFavorite,
   apiErrorMessage,
@@ -37,6 +39,14 @@ export function PostFavoriteButton({
         ? await apiRemovePostFavorite(token, postId)
         : await apiAddPostFavorite(token, postId);
       if (res.code !== API_SUCCESS_CODE) {
+        if (res.code === API_NEED_LOGIN_CODE) {
+          window.alert("登录已过期，请重新登录");
+          return;
+        }
+        if (res.code === API_POST_NOT_EXIST_CODE) {
+          window.alert("帖子不存在或已删除");
+          return;
+        }
         window.alert(apiErrorMessage(res));
         return;
       }

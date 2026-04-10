@@ -104,6 +104,9 @@ func TestSetupRouter_ProtectedEndpointsRequireLogin(t *testing.T) {
 			}
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
+			if w.Code != http.StatusUnauthorized {
+				t.Fatalf("protected api without token should be 401, got=%d body=%s", w.Code, w.Body.String())
+			}
 
 			var got testResp
 			if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {

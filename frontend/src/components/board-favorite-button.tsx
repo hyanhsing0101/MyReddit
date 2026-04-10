@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import {
+  API_BOARD_NOT_EXIST_CODE,
+  API_CANNOT_FAVORITE_PUBLIC_BOARD_CODE,
+  API_NEED_LOGIN_CODE,
   API_SUCCESS_CODE,
   apiAddBoardFavorite,
   apiErrorMessage,
@@ -43,6 +46,18 @@ export function BoardFavoriteButton({
         ? await apiRemoveBoardFavorite(token, boardId)
         : await apiAddBoardFavorite(token, boardId);
       if (res.code !== API_SUCCESS_CODE) {
+        if (res.code === API_NEED_LOGIN_CODE) {
+          window.alert("登录已过期，请重新登录");
+          return;
+        }
+        if (res.code === API_BOARD_NOT_EXIST_CODE) {
+          window.alert("板块不存在或已删除");
+          return;
+        }
+        if (res.code === API_CANNOT_FAVORITE_PUBLIC_BOARD_CODE) {
+          window.alert("公开板块不支持订阅");
+          return;
+        }
         window.alert(apiErrorMessage(res));
         return;
       }

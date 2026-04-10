@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import {
+  API_COMMENT_NOT_EXIST_CODE,
+  API_INVALID_VOTE_VALUE_CODE,
   API_NEED_LOGIN_CODE,
+  API_POST_NOT_EXIST_CODE,
+  API_POST_SEALED_CODE,
   API_SUCCESS_CODE,
   apiErrorMessage,
   apiVoteComment,
@@ -80,6 +84,22 @@ export function CommentVoteControls({
       );
       if (body.code === API_NEED_LOGIN_CODE) {
         setErr("请重新登录");
+        return;
+      }
+      if (body.code === API_POST_NOT_EXIST_CODE) {
+        setErr("帖子不存在或已删除");
+        return;
+      }
+      if (body.code === API_COMMENT_NOT_EXIST_CODE) {
+        setErr("评论不存在或已删除");
+        return;
+      }
+      if (body.code === API_POST_SEALED_CODE) {
+        setErr("该帖已封禁，暂不可投票");
+        return;
+      }
+      if (body.code === API_INVALID_VOTE_VALUE_CODE) {
+        setErr("投票值无效，请重试");
         return;
       }
       if (body.code !== API_SUCCESS_CODE || !body.data) {

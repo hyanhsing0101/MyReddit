@@ -44,7 +44,7 @@ func VotePostHandler(c *gin.Context) {
 			return
 		}
 		if errors.Is(err, postgres.ErrorInvalidVoteValue) {
-			ResponseErrorWithMsg(c, CodeInvalidParam, "value must be 1, -1, or 0")
+			ResponseError(c, CodeInvalidVoteValue)
 			return
 		}
 		if errors.Is(err, logic.ErrPostSealed) {

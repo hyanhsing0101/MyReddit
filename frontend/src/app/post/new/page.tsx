@@ -4,7 +4,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
+  API_CANNOT_POST_TO_SYSTEM_BOARD_CODE,
+  API_INVALID_BOARD_ID_CODE,
   API_SUCCESS_CODE,
+  API_TAG_COUNT_EXCEEDED_CODE,
+  API_TAG_NOT_EXIST_CODE,
   apiCreatePost,
   apiErrorMessage,
   apiListBoards,
@@ -129,6 +133,22 @@ function NewPostForm() {
         content,
       });
       if (body.code !== API_SUCCESS_CODE) {
+        if (body.code === API_INVALID_BOARD_ID_CODE) {
+          setError("板块参数无效，请重新选择板块");
+          return;
+        }
+        if (body.code === API_CANNOT_POST_TO_SYSTEM_BOARD_CODE) {
+          setError("系统保留板块不允许发帖");
+          return;
+        }
+        if (body.code === API_TAG_NOT_EXIST_CODE) {
+          setError("存在无效标签，请刷新后重试");
+          return;
+        }
+        if (body.code === API_TAG_COUNT_EXCEEDED_CODE) {
+          setError("标签数量超限，最多选择 5 个");
+          return;
+        }
         setError(apiErrorMessage(body));
         return;
       }

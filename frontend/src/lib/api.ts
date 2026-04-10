@@ -6,6 +6,10 @@ export const API_SUCCESS_CODE = 1000;
 export const API_NEED_LOGIN_CODE = 1007;
 /** 与后端 controller.CodePostNotExist 一致 */
 export const API_POST_NOT_EXIST_CODE = 1008;
+/** 与后端 controller.CodeBoardNotExist 一致 */
+export const API_BOARD_NOT_EXIST_CODE = 1009;
+/** 与后端 controller.CodeBoardSlugTaken 一致 */
+export const API_BOARD_SLUG_TAKEN_CODE = 1010;
 /** 与后端 controller.CodeUserNotExist 一致 */
 export const API_USER_NOT_EXIST_CODE = 1003;
 /** 与后端 controller.CodeForbidden 一致 */
@@ -16,6 +20,26 @@ export const API_NOT_BOARD_MEMBER_CODE = 1012;
 export const API_CANNOT_FAVORITE_PUBLIC_BOARD_CODE = 1013;
 /** 与后端 controller.CodePostSealed 一致 */
 export const API_POST_SEALED_CODE = 1014;
+/** 与后端 controller.CodeCommentNotExist 一致 */
+export const API_COMMENT_NOT_EXIST_CODE = 1015;
+/** 与后端 controller.CodeInvalidVoteValue 一致 */
+export const API_INVALID_VOTE_VALUE_CODE = 1016;
+/** 与后端 controller.CodeTagNotExist 一致 */
+export const API_TAG_NOT_EXIST_CODE = 1017;
+/** 与后端 controller.CodeTagCountExceeded 一致 */
+export const API_TAG_COUNT_EXCEEDED_CODE = 1018;
+/** 与后端 controller.CodeCannotPostToSystemBoard 一致 */
+export const API_CANNOT_POST_TO_SYSTEM_BOARD_CODE = 1019;
+/** 与后端 controller.CodeBoardModeratorNotExist 一致 */
+export const API_BOARD_MODERATOR_NOT_EXIST_CODE = 1020;
+/** 与后端 controller.CodeCannotRemoveLastOwner 一致 */
+export const API_CANNOT_REMOVE_LAST_OWNER_CODE = 1021;
+/** 与后端 controller.CodeInvalidCommentParent 一致 */
+export const API_INVALID_COMMENT_PARENT_CODE = 1022;
+/** 与后端 controller.CodeParentCommentMismatch 一致 */
+export const API_PARENT_COMMENT_MISMATCH_CODE = 1023;
+/** 与后端 controller.CodeInvalidBoardID 一致 */
+export const API_INVALID_BOARD_ID_CODE = 1024;
 
 export type ApiResponse<T> = {
   code: number;

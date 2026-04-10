@@ -1,5 +1,7 @@
 package controller
 
+import "net/http"
+
 type ResCode int64
 
 // 业务码自 1000 起由 iota 连续递增；请勿在中间插入常量，以免与客户端/文档约定冲突。
@@ -40,6 +42,20 @@ const (
 	CodeNotBoardMember
 	CodeCannotFavoritePublicBoard
 	CodePostSealed
+
+	// =============================================================================
+	// 精细业务语义
+	// =============================================================================
+	CodeCommentNotExist
+	CodeInvalidVoteValue
+	CodeTagNotExist
+	CodeTagCountExceeded
+	CodeCannotPostToSystemBoard
+	CodeBoardModeratorNotExist
+	CodeCannotRemoveLastOwner
+	CodeInvalidCommentParent
+	CodeParentCommentMismatch
+	CodeInvalidBoardID
 )
 
 var codeMsgMap = map[ResCode]string{
@@ -67,6 +83,18 @@ var codeMsgMap = map[ResCode]string{
 	CodeNotBoardMember:           "not board member",
 	CodeCannotFavoritePublicBoard: "cannot favorite public board",
 	CodePostSealed:                "post sealed",
+
+	// ----- 精细业务语义 -----
+	CodeCommentNotExist:        "comment not exist",
+	CodeInvalidVoteValue:       "invalid vote value",
+	CodeTagNotExist:            "tag not exist",
+	CodeTagCountExceeded:       "tag count exceeded",
+	CodeCannotPostToSystemBoard: "cannot post to system board",
+	CodeBoardModeratorNotExist: "board moderator not exist",
+	CodeCannotRemoveLastOwner:  "cannot remove last owner",
+	CodeInvalidCommentParent:   "invalid parent comment",
+	CodeParentCommentMismatch:  "parent comment mismatch",
+	CodeInvalidBoardID:         "invalid board id",
 }
 
 func (c ResCode) Msg() string {
@@ -75,4 +103,30 @@ func (c ResCode) Msg() string {
 		msg = codeMsgMap[CodeServerBusy]
 	}
 	return msg
+}
+
+// HTTPStatus 返回业务码对应的标准 HTTP 状态码。
+func (c ResCode) HTTPStatus() int {
+	switch c {
+	case CodeSuccess:
+		return http.StatusOK
+	case CodeInvalidParam:
+		return http.StatusBadRequest
+	case CodeUserExist, CodeBoardSlugTaken:
+		return http.StatusConflict
+	case CodeUserNotExist, CodeInvalidPassword, CodeInvalidToken, CodeNeedLogin:
+		return http.StatusUnauthorized
+	case CodePostNotExist, CodeBoardNotExist, CodeCommentNotExist, CodeTagNotExist, CodeBoardModeratorNotExist:
+		return http.StatusNotFound
+	case CodeForbidden, CodeNotBoardMember, CodeCannotFavoritePublicBoard, CodeCannotPostToSystemBoard:
+		return http.StatusForbidden
+	case CodePostSealed, CodeCannotRemoveLastOwner:
+		return http.StatusConflict
+	case CodeInvalidVoteValue, CodeTagCountExceeded, CodeInvalidCommentParent, CodeParentCommentMismatch, CodeInvalidBoardID:
+		return http.StatusBadRequest
+	case CodeServerBusy:
+		return http.StatusInternalServerError
+	default:
+		return http.StatusInternalServerError
+	}
 }

@@ -38,15 +38,15 @@ func CreatePostHandler(c *gin.Context) {
 			return
 		}
 		if errors.Is(err, logic.ErrCannotPostToSystemBoard) {
-			ResponseErrorWithMsg(c, CodeInvalidParam, err.Error())
+			ResponseError(c, CodeCannotPostToSystemBoard)
 			return
 		}
 		if errors.Is(err, postgres.ErrorTagNotExist) {
-			ResponseErrorWithMsg(c, CodeInvalidParam, err.Error())
+			ResponseError(c, CodeTagNotExist)
 			return
 		}
 		if errors.Is(err, logic.ErrTagCountExceedsMaxLimit) {
-			ResponseErrorWithMsg(c, CodeInvalidParam, err.Error())
+			ResponseError(c, CodeTagCountExceeded)
 			return
 		}
 		if errors.Is(err, logic.ErrNotBoardMember) {
@@ -57,7 +57,7 @@ func CreatePostHandler(c *gin.Context) {
 		ResponseError(c, CodeServerBusy)
 		return
 	}
-	ResponseSuccess(c, nil)
+	ResponseCreated(c, nil)
 }
 
 // ListPostHandler 分页获取帖子列表（支持 board_id 与 sort）。
@@ -75,7 +75,7 @@ func ListPostHandler(c *gin.Context) {
 			return
 		}
 		if errors.Is(err, logic.ErrInvalidBoardID) {
-			ResponseError(c, CodeInvalidParam)
+			ResponseError(c, CodeInvalidBoardID)
 			return
 		}
 		zap.L().Error("List Post Failed", zap.Error(err))
@@ -169,7 +169,11 @@ func UpdatePostHandler(c *gin.Context) {
 		}
 		if errors.Is(err, postgres.ErrorTagNotExist) ||
 			errors.Is(err, logic.ErrTagCountExceedsMaxLimit) {
-			ResponseErrorWithMsg(c, CodeInvalidParam, err.Error())
+			if errors.Is(err, postgres.ErrorTagNotExist) {
+				ResponseError(c, CodeTagNotExist)
+				return
+			}
+			ResponseError(c, CodeTagCountExceeded)
 			return
 		}
 		if errors.Is(err, logic.ErrEditPostForbidden) {

@@ -4,8 +4,12 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
+  API_BOARD_NOT_EXIST_CODE,
+  API_BOARD_MODERATOR_NOT_EXIST_CODE,
+  API_CANNOT_REMOVE_LAST_OWNER_CODE,
   API_FORBIDDEN_CODE,
   API_SUCCESS_CODE,
+  API_USER_NOT_EXIST_CODE,
   apiAddBoardModerator,
   apiErrorMessage,
   apiGetBoardBySlug,
@@ -102,6 +106,18 @@ export default function BoardModeratorsPage() {
         role: newRole,
       });
       if (res.code !== API_SUCCESS_CODE) {
+        if (res.code === API_USER_NOT_EXIST_CODE) {
+          setError("目标用户不存在");
+          return;
+        }
+        if (res.code === API_BOARD_NOT_EXIST_CODE) {
+          setError("板块不存在或已删除");
+          return;
+        }
+        if (res.code === API_FORBIDDEN_CODE) {
+          setError("无权限管理版主");
+          return;
+        }
         setError(apiErrorMessage(res));
         return;
       }
@@ -126,6 +142,23 @@ export default function BoardModeratorsPage() {
     try {
       const res = await apiUpdateBoardModeratorRole(token, board.id, userID, role);
       if (res.code !== API_SUCCESS_CODE) {
+        if (res.code === API_BOARD_MODERATOR_NOT_EXIST_CODE) {
+          setError("目标版主不存在，列表可能已变化");
+          await load();
+          return;
+        }
+        if (res.code === API_CANNOT_REMOVE_LAST_OWNER_CODE) {
+          setError("不能移除最后一个 owner");
+          return;
+        }
+        if (res.code === API_BOARD_NOT_EXIST_CODE) {
+          setError("板块不存在或已删除");
+          return;
+        }
+        if (res.code === API_FORBIDDEN_CODE) {
+          setError("无权限管理版主");
+          return;
+        }
         setError(apiErrorMessage(res));
         return;
       }
@@ -150,8 +183,17 @@ export default function BoardModeratorsPage() {
     try {
       const res = await apiRemoveBoardModerator(token, board.id, userID);
       if (res.code !== API_SUCCESS_CODE) {
+        if (res.code === API_BOARD_MODERATOR_NOT_EXIST_CODE) {
+          setError("目标版主不存在，列表可能已变化");
+          await load();
+          return;
+        }
+        if (res.code === API_CANNOT_REMOVE_LAST_OWNER_CODE) {
+          setError("不能移除最后一个 owner");
+          return;
+        }
         if (res.code === API_FORBIDDEN_CODE) {
-          setError("无权限操作，或该用户是最后一个 owner");
+          setError("无权限操作");
         } else {
           setError(apiErrorMessage(res));
         }
