@@ -10,6 +10,12 @@ export const API_POST_NOT_EXIST_CODE = 1008;
 export const API_USER_NOT_EXIST_CODE = 1003;
 /** 与后端 controller.CodeForbidden 一致 */
 export const API_FORBIDDEN_CODE = 1011;
+/** 与后端 controller.CodeNotBoardMember 一致 */
+export const API_NOT_BOARD_MEMBER_CODE = 1012;
+/** 与后端 controller.CodeCannotFavoritePublicBoard 一致 */
+export const API_CANNOT_FAVORITE_PUBLIC_BOARD_CODE = 1013;
+/** 与后端 controller.CodePostSealed 一致 */
+export const API_POST_SEALED_CODE = 1014;
 
 export type ApiResponse<T> = {
   code: number;
@@ -62,6 +68,11 @@ export async function apiLogin(payload: {
   return parseJson(res);
 }
 
+export type PostModerationActions = {
+  can_seal: boolean;
+  can_unseal: boolean;
+};
+
 export type PostItem = {
   id: number;
   board_id: number;
@@ -77,6 +88,9 @@ export type PostItem = {
   my_vote?: number | null;
   /** 带合法 Bearer 时由后端返回 */
   is_favorited?: boolean;
+  sealed?: boolean;
+  seal_kind?: string;
+  moderation_actions?: PostModerationActions;
   create_time: string;
   update_time: string;
 };
@@ -234,6 +248,28 @@ export async function apiDeletePost(
   return parseJson<null>(res);
 }
 
+export async function apiSealPost(
+  accessToken: string,
+  postId: number,
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/posts/${postId}/seal`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<null>(res);
+}
+
+export async function apiUnsealPost(
+  accessToken: string,
+  postId: number,
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/posts/${postId}/unseal`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<null>(res);
+}
+
 export async function apiAddPostFavorite(
   accessToken: string,
   postId: number,
@@ -261,6 +297,7 @@ export type MePermissionsPayload = {
   username: string;
   roles: string[];
   is_site_admin: boolean;
+  moderated_board_ids: number[];
 };
 
 export type UserHomePostItem = {
@@ -303,6 +340,7 @@ export async function apiGetUserHome(
   postPageSize = 10,
   commentPage = 1,
   commentPageSize = 10,
+  accessToken?: string | null,
 ): Promise<ApiResponse<UserHomePayload>> {
   const q = new URLSearchParams({
     post_page: String(postPage),
@@ -310,7 +348,13 @@ export async function apiGetUserHome(
     comment_page: String(commentPage),
     comment_page_size: String(commentPageSize),
   });
-  const res = await fetch(`${API_BASE}/users/${userId}/home?${q.toString()}`);
+  const headers: HeadersInit = {};
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+  const res = await fetch(`${API_BASE}/users/${userId}/home?${q.toString()}`, {
+    headers,
+  });
   return parseJson<UserHomePayload>(res);
 }
 
@@ -360,6 +404,8 @@ export type BoardItem = {
   name: string;
   description: string;
   created_by: number | null;
+  /** public | private */
+  visibility: string;
   is_system_sink: boolean;
   create_time: string;
   update_time: string;
@@ -511,7 +557,12 @@ export async function apiRemoveBoardFavorite(
 
 export async function apiCreateBoard(
   accessToken: string,
-  payload: { slug: string; name: string; description?: string },
+  payload: {
+    slug: string;
+    name: string;
+    description?: string;
+    visibility?: "public" | "private";
+  },
 ): Promise<ApiResponse<null>> {
   const res = await fetch(`${API_BASE}/boards`, {
     method: "POST",
@@ -541,6 +592,7 @@ export async function apiSearch(
   scope: SearchScope = "all",
   postLimit = 20,
   boardLimit = 10,
+  accessToken?: string | null,
 ): Promise<ApiResponse<SearchDataPayload>> {
   const params = new URLSearchParams({
     q,
@@ -548,7 +600,13 @@ export async function apiSearch(
     post_limit: String(postLimit),
     board_limit: String(boardLimit),
   });
-  const res = await fetch(`${API_BASE}/search?${params.toString()}`);
+  const headers: HeadersInit = {};
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+  const res = await fetch(`${API_BASE}/search?${params.toString()}`, {
+    headers,
+  });
   return parseJson<SearchDataPayload>(res);
 }
 

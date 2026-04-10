@@ -15,7 +15,7 @@ func SearchHandler(c *gin.Context) {
 		ResponseError(c, CodeInvalidParam)
 		return
 	}
-	searchData, err := logic.Search(p)
+	searchData, err := logic.Search(p, GetOptionalUserID(c))
 	if err != nil {
 		zap.L().Error("Search With Error", zap.Error(err))
 		ResponseError(c, CodeServerBusy)

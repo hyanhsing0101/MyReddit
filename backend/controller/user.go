@@ -80,7 +80,7 @@ func GetUserHomeHandler(c *gin.Context) {
 		ResponseError(c, CodeInvalidParam)
 		return
 	}
-	data, err := logic.GetUserHome(userID, p)
+	data, err := logic.GetUserHome(userID, p, GetOptionalUserID(c))
 	if err != nil {
 		if errors.Is(err, postgres.ErrorUserNotExist) {
 			ResponseError(c, CodeUserNotExist)

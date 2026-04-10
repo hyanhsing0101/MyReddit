@@ -133,32 +133,44 @@ func MePermissions(userID int64) (*models.MePermissionsView, error) {
 	if err != nil {
 		return nil, err
 	}
+	modBoards, err := postgres.ListModeratedBoardIDsByUser(userID)
+	if err != nil {
+		return nil, err
+	}
 	roles := []string{"user"}
 	if admin {
 		roles = append(roles, "admin")
 	}
+	if len(modBoards) > 0 {
+		roles = append(roles, "moderator")
+	}
 	return &models.MePermissionsView{
-		UserID:      userID,
-		Username:    username,
-		Roles:       roles,
-		IsSiteAdmin: admin,
+		UserID:            userID,
+		Username:          username,
+		Roles:             roles,
+		IsSiteAdmin:       admin,
+		ModeratedBoardIDs: modBoards,
 	}, nil
 }
 
 // GetUserHome 获取用户主页数据（帖子与评论双列表分页）。
-func GetUserHome(userID int64, p *models.ParamUserHome) (*models.UserHomeData, error) {
+func GetUserHome(userID int64, p *models.ParamUserHome, viewerID *int64) (*models.UserHomeData, error) {
 	p.Normalize()
 	username, err := postgres.GetUsernameByUserID(userID)
 	if err != nil {
 		return nil, err
 	}
+	r, err := postReader(viewerID)
+	if err != nil {
+		return nil, err
+	}
 
-	postsTotal, err := postgres.CountPostsByAuthorID(userID)
+	postsTotal, err := postgres.CountPostsByAuthorIDForViewer(userID, r)
 	if err != nil {
 		return nil, err
 	}
 	postOffset := (p.PostPage - 1) * p.PostPageSize
-	postRows, err := postgres.ListPostsByAuthorID(userID, p.PostPageSize, postOffset)
+	postRows, err := postgres.ListPostsByAuthorIDForViewer(userID, r, p.PostPageSize, postOffset)
 	if err != nil {
 		return nil, err
 	}
@@ -181,12 +193,12 @@ func GetUserHome(userID int64, p *models.ParamUserHome) (*models.UserHomeData, e
 		posts = append(posts, item)
 	}
 
-	commentsTotal, err := postgres.CountCommentsByAuthorID(userID)
+	commentsTotal, err := postgres.CountCommentsByAuthorIDForViewer(userID, r)
 	if err != nil {
 		return nil, err
 	}
 	commentOffset := (p.CommentPage - 1) * p.CommentPageSize
-	comments, err := postgres.ListCommentsByAuthorID(userID, p.CommentPageSize, commentOffset)
+	comments, err := postgres.ListCommentsByAuthorIDForViewer(userID, r, p.CommentPageSize, commentOffset)
 	if err != nil {
 		return nil, err
 	}

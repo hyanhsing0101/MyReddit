@@ -10,6 +10,7 @@ import {
   API_USER_NOT_EXIST_CODE,
   type UserHomePayload,
 } from "@/lib/api";
+import { getAccessToken } from "@/lib/auth-storage";
 
 function previewText(text: string, max = 80) {
   const t = text.replace(/\s+/g, " ").trim();
@@ -56,6 +57,7 @@ export default function UserHomePage() {
           pageSize,
           commentPage,
           pageSize,
+          getAccessToken(),
         );
         if (cancelled) return;
         if (body.code === API_USER_NOT_EXIST_CODE) {

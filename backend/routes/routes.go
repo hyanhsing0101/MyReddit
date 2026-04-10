@@ -54,9 +54,15 @@ func SetupRouter(mode string) *gin.Engine {
 	// 功能：取消收藏帖子（未收藏也返回成功）。统一用 POST，避免部分环境对 DELETE 跨域/网关限制。
 	// Postman：POST {{baseUrl}}/posts/1/unfavorite · Bearer。
 	r.POST("/posts/:id/unfavorite", middleware.JWTAuthMiddleware(), controller.RemovePostFavoriteHandler)
-	// 功能：软删帖子；作者可删自己的帖，站点管理员可删任意帖；无主帖仅管理员可删。
+	// 功能：软删帖子；作者可删自己的帖；无主帖仅站点管理员可删。站主/版主治理请用封帖接口。
 	// Postman：DELETE {{baseUrl}}/posts/1 · Bearer。
 	r.DELETE("/posts/:id", middleware.JWTAuthMiddleware(), controller.DeletePostHandler)
+	// 功能：版主或站主封帖（与作者软删状态独立）。
+	// Postman：POST {{baseUrl}}/posts/1/seal · Bearer。
+	r.POST("/posts/:id/seal", middleware.JWTAuthMiddleware(), controller.SealPostHandler)
+	// 功能：解封帖子（站主任意；版主仅可解封 moderator 类封帖）。
+	// Postman：POST {{baseUrl}}/posts/1/unseal · Bearer。
+	r.POST("/posts/:id/unseal", middleware.JWTAuthMiddleware(), controller.UnsealPostHandler)
 	// 功能：分页帖子列表；可选 board_id 只拉该板帖子；sort 支持 new|top|hot（默认 new）。
 	// Postman：GET {{baseUrl}}/posts?page=1&page_size=10&sort=hot · sort=new|hot|top；可选 &board_id=1。前端首页/板块「最新·热门·高分」与此一致。可选 Bearer：带合法 access_token 时每条含 my_vote / is_favorited。
 	r.GET("/posts", middleware.OptionalAuthMiddleware(), controller.ListPostHandler)
@@ -84,13 +90,13 @@ func SetupRouter(mode string) *gin.Engine {
 	// Postman：POST {{baseUrl}}/boards · Bearer · Body raw JSON：{"slug":"my_board","name":"展示名","description":"可选"}。
 	r.POST("/boards", middleware.JWTAuthMiddleware(), controller.CreateBoardHandler)
 
-	// 功能：全站搜索（FTS，scope=all|posts|boards 控制范围）。
+	// 功能：全站搜索（FTS，scope=all|posts|boards 控制范围）。可选 Bearer 以按权限过滤私有板/不可见帖。
 	// Postman：GET {{baseUrl}}/search?q=t1&scope=posts&post_limit=20&board_limit=10。
-	r.GET("/search", controller.SearchHandler)
+	r.GET("/search", middleware.OptionalAuthMiddleware(), controller.SearchHandler)
 
-	// 功能：用户主页（帖子与评论双列表分页）。
+	// 功能：用户主页（帖子与评论双列表分页）。可选 Bearer：按当前用户权限过滤私有板内容。
 	// Postman：GET {{baseUrl}}/users/100001/home?post_page=1&post_page_size=10&comment_page=1&comment_page_size=10。
-	r.GET("/users/:id/home", controller.GetUserHomeHandler)
+	r.GET("/users/:id/home", middleware.OptionalAuthMiddleware(), controller.GetUserHomeHandler)
 
 	// 功能：任意登录用户查看自己的权限。
 	r.GET("/me/permissions", middleware.JWTAuthMiddleware(), controller.MePermissionsHandler)

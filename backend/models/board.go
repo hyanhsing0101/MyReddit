@@ -5,12 +5,18 @@ import (
 	"time"
 )
 
+const (
+	BoardVisibilityPublic  = "public"
+	BoardVisibilityPrivate = "private"
+)
+
 type Board struct {
 	ID           int64          `db:"id"`
 	Slug         string         `db:"slug"`
 	Name         string         `db:"name"`
 	Description  sql.NullString `db:"description"`
 	CreatedBy    sql.NullInt64  `db:"created_by"`
+	Visibility   string         `db:"visibility"`
 	IsSystemSink bool           `db:"is_system_sink"`
 	CreateTime   time.Time      `db:"create_time"`
 	UpdateTime   time.Time      `db:"update_time"`
@@ -22,6 +28,7 @@ type BoardView struct {
 	Name         string    `json:"name"`
 	Description  string    `json:"description"`
 	CreatedBy    *int64    `json:"created_by"`
+	Visibility   string    `json:"visibility"`
 	IsSystemSink bool      `json:"is_system_sink"`
 	CreateTime   time.Time `json:"create_time"`
 	UpdateTime   time.Time `json:"update_time"`
@@ -34,9 +41,13 @@ func BoardToView(b Board) BoardView {
 		ID:           b.ID,
 		Slug:         b.Slug,
 		Name:         b.Name,
+		Visibility:   b.Visibility,
 		IsSystemSink: b.IsSystemSink,
 		CreateTime:   b.CreateTime,
 		UpdateTime:   b.UpdateTime,
+	}
+	if v.Visibility == "" {
+		v.Visibility = BoardVisibilityPublic
 	}
 	if b.Description.Valid {
 		v.Description = b.Description.String

@@ -9,6 +9,7 @@ import { PostVoteControls } from "@/components/post-vote-controls";
 import {
   API_FORBIDDEN_CODE,
   API_POST_NOT_EXIST_CODE,
+  API_POST_SEALED_CODE,
   API_SUCCESS_CODE,
   apiCreateComment,
   apiDeletePost,
@@ -16,6 +17,8 @@ import {
   apiGetPost,
   apiListComments,
   apiMePermissions,
+  apiSealPost,
+  apiUnsealPost,
   tagDisplayLabel,
   type CommentItem,
   type MePermissionsPayload,
@@ -23,7 +26,7 @@ import {
 } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth-storage";
 
-function canDeletePost(
+function canEditPost(
   post: PostItem,
   me: MePermissionsPayload | null,
 ): boolean {
@@ -31,6 +34,16 @@ function canDeletePost(
   if (me.is_site_admin) return true;
   if (post.author_id == null) return false;
   return post.author_id === me.user_id;
+}
+
+/** 软删：仅作者；无主帖仅站主（与后端一致）。 */
+function canDeletePost(
+  post: PostItem,
+  me: MePermissionsPayload | null,
+): boolean {
+  if (!me) return false;
+  if (post.author_id != null) return post.author_id === me.user_id;
+  return me.is_site_admin;
 }
 
 type CommentNode = CommentItem & { children: CommentNode[] };
@@ -162,6 +175,8 @@ export default function PostDetailPage() {
   const [meLoaded, setMeLoaded] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [sealBusy, setSealBusy] = useState(false);
+  const [sealError, setSealError] = useState<string | null>(null);
 
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [commentsTotal, setCommentsTotal] = useState(0);
@@ -291,10 +306,69 @@ export default function PostDetailPage() {
     [],
   );
 
+  const showEdit = useMemo(() => {
+    if (!post || !meLoaded) return false;
+    return canEditPost(post, me);
+  }, [post, me, meLoaded]);
+
   const showDelete = useMemo(() => {
     if (!post || !meLoaded) return false;
     return canDeletePost(post, me);
   }, [post, me, meLoaded]);
+
+  const isSealed = !!post?.sealed;
+  const modActions = post?.moderation_actions;
+
+  async function handleSeal() {
+    if (!post) return;
+    const token = getAccessToken();
+    if (!token) return;
+    if (!window.confirm("确定封帖？封帖后普通用户不可见正文，且不可评论/投票。"))
+      return;
+    setSealError(null);
+    setSealBusy(true);
+    try {
+      const body = await apiSealPost(token, post.id);
+      if (body.code === API_SUCCESS_CODE) {
+        const reload = await apiGetPost(post.id, token);
+        if (reload.code === API_SUCCESS_CODE && reload.data) {
+          setPost(reload.data);
+        }
+        await loadComments(post.id);
+        return;
+      }
+      setSealError(apiErrorMessage(body));
+    } catch (e) {
+      setSealError(e instanceof Error ? e.message : "操作失败");
+    } finally {
+      setSealBusy(false);
+    }
+  }
+
+  async function handleUnseal() {
+    if (!post) return;
+    const token = getAccessToken();
+    if (!token) return;
+    if (!window.confirm("确定解封该帖？")) return;
+    setSealError(null);
+    setSealBusy(true);
+    try {
+      const body = await apiUnsealPost(token, post.id);
+      if (body.code === API_SUCCESS_CODE) {
+        const reload = await apiGetPost(post.id, token);
+        if (reload.code === API_SUCCESS_CODE && reload.data) {
+          setPost(reload.data);
+        }
+        await loadComments(post.id);
+        return;
+      }
+      setSealError(apiErrorMessage(body));
+    } catch (e) {
+      setSealError(e instanceof Error ? e.message : "操作失败");
+    } finally {
+      setSealBusy(false);
+    }
+  }
 
   async function handleDelete() {
     if (!post) return;
@@ -345,6 +419,10 @@ export default function PostDetailPage() {
         ...(replyTo ? { parent_id: replyTo.id } : {}),
       });
       if (body.code !== API_SUCCESS_CODE) {
+        if (body.code === API_POST_SEALED_CODE) {
+          setCommentSubmitError("该帖已封禁，暂不可评论");
+          return;
+        }
         setCommentSubmitError(apiErrorMessage(body));
         return;
       }
@@ -391,6 +469,7 @@ export default function PostDetailPage() {
                   score={post.score ?? 0}
                   myVote={post.my_vote ?? null}
                   accessToken={getAccessToken()}
+                  disabled={isSealed}
                   onUpdated={(patch) => {
                     setPost((prev) =>
                       prev
@@ -416,13 +495,33 @@ export default function PostDetailPage() {
                     );
                   }}
                 />
-                {showDelete ? (
+                {showEdit ? (
                   <Link
                     href={`/posts/${post.id}/edit`}
                     className="shrink-0 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-600"
                   >
                     编辑
                   </Link>
+                ) : null}
+                {modActions?.can_seal ? (
+                  <button
+                    type="button"
+                    disabled={sealBusy}
+                    onClick={() => void handleSeal()}
+                    className="shrink-0 rounded-lg border border-amber-400 px-3 py-1.5 text-sm text-amber-900 disabled:opacity-50 dark:border-amber-700 dark:text-amber-200"
+                  >
+                    封帖
+                  </button>
+                ) : null}
+                {modActions?.can_unseal ? (
+                  <button
+                    type="button"
+                    disabled={sealBusy}
+                    onClick={() => void handleUnseal()}
+                    className="shrink-0 rounded-lg border border-emerald-500 px-3 py-1.5 text-sm text-emerald-800 disabled:opacity-50 dark:border-emerald-700 dark:text-emerald-200"
+                  >
+                    解封
+                  </button>
                 ) : null}
               </div>
               {showDelete ? (
@@ -436,6 +535,11 @@ export default function PostDetailPage() {
                 </button>
               ) : null}
             </div>
+            {sealError ? (
+              <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+                {sealError}
+              </p>
+            ) : null}
             {deleteError ? (
               <p className="mt-2 text-sm text-red-600 dark:text-red-400">
                 {deleteError}
@@ -470,6 +574,19 @@ export default function PostDetailPage() {
                 minute: "2-digit",
               })}
             </p>
+            {isSealed ? (
+              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                该帖已被
+                {post.seal_kind === "site"
+                  ? "站主"
+                  : post.seal_kind === "moderator"
+                    ? "版主"
+                    : "管理员"}
+                封禁
+                {post.seal_kind ? `（${post.seal_kind}）` : ""}
+                ，部分用户不可见正文；解封后恢复正常展示。
+              </div>
+            ) : null}
             <div className="mt-8 whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-800 dark:text-zinc-200">
               {post.content}
             </div>
@@ -543,13 +660,15 @@ export default function PostDetailPage() {
                 <textarea
                   className="min-h-[100px] w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
                   placeholder={
-                    getAccessToken()
-                      ? "写评论…"
-                      : "登录后可发表评论"
+                    isSealed
+                      ? "该帖已封禁，不可评论"
+                      : getAccessToken()
+                        ? "写评论…"
+                        : "登录后可发表评论"
                   }
                   value={commentBody}
                   onChange={(e) => setCommentBody(e.target.value)}
-                  disabled={!getAccessToken()}
+                  disabled={!getAccessToken() || isSealed}
                   rows={4}
                 />
                 {commentSubmitError ? (
@@ -563,7 +682,8 @@ export default function PostDetailPage() {
                     disabled={
                       commentSubmitting ||
                       !getAccessToken() ||
-                      !commentBody.trim()
+                      !commentBody.trim() ||
+                      isSealed
                     }
                     className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
                   >

@@ -14,10 +14,18 @@ INSERT INTO "user" (user_id, username, password, is_site_admin) VALUES
     (10003, 'hyan2', '22adb69ee809438ca2efbe47b2fff5e7', FALSE),
     (10004, 'admin', '5709aa2e0d3394e4553eb846b765c0e7', TRUE);
 
-INSERT INTO "board" (slug, name, description, is_system_sink, created_by) VALUES
-    ('_archived', '已归档', '原板块删除后，帖子统一归并到此板块。', TRUE, NULL),
-    ('general', '综合', '默认讨论板块。', FALSE, NULL),
-    ('t', 'T 板块', 'hyan1 创建的测试板块。', FALSE, 10002);
+INSERT INTO "board" (slug, name, description, visibility, is_system_sink, created_by) VALUES
+    ('_archived', '已归档', '原板块删除后，帖子统一归并到此板块。', 'public', TRUE, NULL),
+    ('general', '综合', '默认讨论板块。', 'public', FALSE, NULL),
+    ('t', 'T 板块', 'hyan1 创建的测试板块。', 'public', FALSE, 10002),
+    ('private_lab', '私有联调板', '仅成员可见；用于测试私有版与订阅。', 'private', FALSE, 10002);
+
+-- 有创建者的非系统板：创建者为版主
+INSERT INTO board_moderator (user_id, board_id, create_time)
+SELECT b.created_by, b.id, NOW()
+FROM board b
+WHERE b.is_system_sink = FALSE AND b.created_by IS NOT NULL
+ON CONFLICT (user_id, board_id) DO NOTHING;
 
 INSERT INTO "post" (board_id, title, content, author_id)
 SELECT b.id, 't1', 'c1', 10002 FROM "board" b WHERE b.slug = 't'
@@ -60,11 +68,12 @@ FROM "post" p, "tag" t
 WHERE p.title = 't2' AND t.slug IN ('discussion', 'show')
 ON CONFLICT (post_id, tag_id) DO NOTHING;
 
--- hyan1 收藏综合板与 T 板（联调收藏列表 / is_favorited）
+-- 公开板不可订阅：仅私有板写入 board_favorite（hyan1、hyan2 订阅 private_lab）
 INSERT INTO board_favorite (user_id, board_id, create_time)
-SELECT 10002, b.id, NOW()
+SELECT u.uid, b.id, NOW()
 FROM board b
-WHERE b.slug IN ('general', 't')
+CROSS JOIN (VALUES (10002::bigint), (10003::bigint)) AS u(uid)
+WHERE b.slug = 'private_lab'
 ON CONFLICT (user_id, board_id) DO NOTHING;
 
 -- hyan1 收藏帖子 t1（联调帖子收藏）

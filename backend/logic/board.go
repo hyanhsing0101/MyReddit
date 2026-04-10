@@ -17,9 +17,12 @@ var boardSlugPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_]{0,62}$`)
 var (
 	ErrBoardSlugReserved = errors.New("board slug reserved")
 	ErrBoardSlugInvalid  = errors.New("board slug invalid")
-	ErrBoardNameEmpty    = errors.New("board name empty")
+	ErrBoardNameEmpty         = errors.New("board name empty")
+	ErrBoardVisibilityInvalid = errors.New("board visibility invalid")
 	// ErrCannotFavoriteSystemBoard 系统归档板等不可收藏
 	ErrCannotFavoriteSystemBoard = errors.New("cannot favorite system board")
+	// ErrCannotFavoritePublicBoard 公开板不提供订阅/收藏
+	ErrCannotFavoritePublicBoard = errors.New("cannot favorite public board")
 )
 
 func normalizeBoardSlug(slug string) string {
@@ -63,12 +66,20 @@ func attachFavoriteFlagsToBoards(list []models.BoardView, viewerID *int64) error
 func ListBoards(p *models.ParamBoardList, viewerID *int64) (*models.BoardListData, error) {
 	p.Normalize()
 	include := p.IncludeSystemSink
-	total, err := postgres.CountBoards(include)
+	admin := false
+	var err error
+	if viewerID != nil {
+		admin, err = postgres.IsSiteAdmin(*viewerID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	total, err := postgres.CountBoards(include, viewerID, admin)
 	if err != nil {
 		return nil, err
 	}
 	offset := (p.Page - 1) * p.PageSize
-	rows, err := postgres.ListBoards(include, p.PageSize, offset)
+	rows, err := postgres.ListBoards(include, p.PageSize, offset, viewerID, admin)
 	if err != nil {
 		return nil, err
 	}
@@ -91,6 +102,13 @@ func GetBoardByID(id int64, viewerID *int64) (*models.BoardView, error) {
 	b, err := postgres.GetBoardByID(id)
 	if err != nil {
 		return nil, err
+	}
+	ok, err := canReadBoard(viewerID, b)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, postgres.ErrorBoardNotExist
 	}
 	v := models.BoardToView(*b)
 	if viewerID != nil {
@@ -130,6 +148,13 @@ func CreateBoard(p *models.ParamCreateBoard, userID int64) error {
 	if name == "" {
 		return ErrBoardNameEmpty
 	}
+	vis := strings.TrimSpace(p.Visibility)
+	if vis == "" {
+		vis = models.BoardVisibilityPublic
+	}
+	if vis != models.BoardVisibilityPublic && vis != models.BoardVisibilityPrivate {
+		return ErrBoardVisibilityInvalid
+	}
 	desc := strings.TrimSpace(p.Description)
 	var descNull sql.NullString
 	if desc != "" {
@@ -141,10 +166,11 @@ func CreateBoard(p *models.ParamCreateBoard, userID int64) error {
 		Name:         name,
 		Description:  descNull,
 		CreatedBy:    sql.NullInt64{Int64: userID, Valid: true},
+		Visibility:   vis,
 		CreateTime:   now,
 		UpdateTime:   now,
 	}
-	return postgres.CreateBoard(&b)
+	return postgres.CreateBoardWithModerator(&b, userID)
 }
 
 func AddBoardFavorite(userID, boardID int64) error {
@@ -154,6 +180,9 @@ func AddBoardFavorite(userID, boardID int64) error {
 	}
 	if b.IsSystemSink {
 		return ErrCannotFavoriteSystemBoard
+	}
+	if b.Visibility == models.BoardVisibilityPublic || b.Visibility == "" {
+		return ErrCannotFavoritePublicBoard
 	}
 	return postgres.AddBoardFavorite(userID, boardID)
 }

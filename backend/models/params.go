@@ -126,6 +126,8 @@ type ParamCreateBoard struct {
 	Slug        string `json:"slug" binding:"required"`
 	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
+	// Visibility 可选，默认 public；仅支持 public | private。
+	Visibility string `json:"visibility" binding:"omitempty,oneof=public private"`
 }
 
 type ParamFavoriteBoardList struct {

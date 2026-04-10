@@ -20,6 +20,7 @@ type SearchBoardItem struct {
 	Slug         string    `db:"slug" json:"slug"`
 	Name         string    `db:"name" json:"name"`
 	Description  string    `db:"description" json:"description"`
+	Visibility   string    `db:"visibility" json:"visibility"`
 	IsSystemSink bool      `db:"is_system_sink" json:"is_system_sink"`
 	CreateTime   time.Time `db:"create_time" json:"create_time"`
 	UpdateTime   time.Time `db:"update_time" json:"update_time"`

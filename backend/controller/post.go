@@ -49,6 +49,10 @@ func CreatePostHandler(c *gin.Context) {
 			ResponseErrorWithMsg(c, CodeInvalidParam, err.Error())
 			return
 		}
+		if errors.Is(err, logic.ErrNotBoardMember) {
+			ResponseError(c, CodeNotBoardMember)
+			return
+		}
 		zap.L().Error("Create Post Failed", zap.Error(err))
 		ResponseError(c, CodeServerBusy)
 		return

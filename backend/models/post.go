@@ -12,12 +12,22 @@ type Post struct {
 	Content    string         `db:"content"`
 	AuthorID   sql.NullInt64  `db:"author_id"`
 	DeletedAt  sql.NullTime   `db:"deleted_at"`
+	SealedAt   sql.NullTime   `db:"sealed_at"`
+	SealedBy   sql.NullInt64  `db:"sealed_by_user_id"`
+	SealKind   sql.NullString `db:"seal_kind"`
 	Score      int64          `db:"score"`
 	CreateTime time.Time      `db:"create_time"`
 	UpdateTime time.Time      `db:"update_time"`
 	BoardSlug  sql.NullString `db:"board_slug"`
 	BoardName  sql.NullString `db:"board_name"`
+	BoardVis   sql.NullString `db:"board_visibility"`
 	TagIDs     []int64        `db:"tag_ids"`
+}
+
+// PostModerationActionsView 详情接口在登录且有权治理时返回。
+type PostModerationActionsView struct {
+	CanSeal   bool `json:"can_seal"`
+	CanUnseal bool `json:"can_unseal"`
 }
 
 // PostView 列表/详情接口返回用，author_id 可空时用 JSON null
@@ -33,9 +43,13 @@ type PostView struct {
 	MyVote    *int8  `json:"my_vote"`
 	// IsFavorited 仅当请求带合法登录态时设置 true/false；未登录时省略。
 	IsFavorited *bool     `json:"is_favorited,omitempty"`
+	Sealed      bool      `json:"sealed"`
+	SealKind    *string   `json:"seal_kind,omitempty"`
 	CreateTime  time.Time `json:"create_time"`
 	UpdateTime  time.Time `json:"update_time"`
 	Tags        []Tag     `json:"tags"`
+	// ModerationActions 仅帖子详情在有权时返回；列表通常省略。
+	ModerationActions *PostModerationActionsView `json:"moderation_actions,omitempty"`
 }
 
 func PostToView(p Post) PostView {
@@ -45,8 +59,13 @@ func PostToView(p Post) PostView {
 		Title:      p.Title,
 		Content:    p.Content,
 		Score:      p.Score,
+		Sealed:     p.SealedAt.Valid,
 		CreateTime: p.CreateTime,
 		UpdateTime: p.UpdateTime,
+	}
+	if p.SealKind.Valid && p.SealKind.String != "" {
+		sk := p.SealKind.String
+		v.SealKind = &sk
 	}
 	if p.BoardSlug.Valid {
 		v.BoardSlug = p.BoardSlug.String

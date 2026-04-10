@@ -14,8 +14,16 @@ var (
 )
 
 func CreateComment(postID int64, userID int64, p *models.ParamCreateComment) error {
-	if _, err := postgres.GetPostByID(postID); err != nil {
+	r, err := postReader(&userID)
+	if err != nil {
 		return err
+	}
+	row, err := postgres.GetPostByID(postID, r)
+	if err != nil {
+		return err
+	}
+	if row.SealedAt.Valid {
+		return ErrPostSealed
 	}
 	var parentID sql.NullInt64
 	if p.ParentID != nil {
@@ -44,7 +52,11 @@ func CreateComment(postID int64, userID int64, p *models.ParamCreateComment) err
 }
 
 func ListComments(postID int64, param *models.ParamCommentList, viewerID *int64) (*models.CommentListData, error) {
-	if _, err := postgres.GetPostByID(postID); err != nil {
+	r, err := postReader(viewerID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := postgres.GetPostByID(postID, r); err != nil {
 		return nil, err
 	}
 	param.Normalize()
@@ -87,8 +99,19 @@ func ListComments(postID int64, param *models.ParamCommentList, viewerID *int64)
 
 // VoteComment 对评论上/下票或取消；返回最新 score 与 my_vote。
 func VoteComment(postID, commentID, userID int64, value int8) (*models.PostVoteResult, error) {
-	if _, err := postgres.GetPostByID(postID); err != nil {
+	r, err := postReader(&userID)
+	if err != nil {
 		return nil, err
+	}
+	if _, err := postgres.GetPostByID(postID, r); err != nil {
+		return nil, err
+	}
+	full, err := postgres.GetPostByIDIncludingDeleted(postID)
+	if err != nil {
+		return nil, err
+	}
+	if full.SealedAt.Valid {
+		return nil, ErrPostSealed
 	}
 	score, myVote, err := postgres.ApplyCommentVote(postID, commentID, userID, value)
 	if err != nil {

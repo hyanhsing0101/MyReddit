@@ -76,6 +76,10 @@ func CreateCommentHandler(c *gin.Context) {
 			ResponseErrorWithMsg(c, CodeInvalidParam, "invalid parent_id")
 			return
 		}
+		if errors.Is(err, logic.ErrPostSealed) {
+			ResponseError(c, CodePostSealed)
+			return
+		}
 		zap.L().Error("CreateComment Failed", zap.Error(err), zap.Int64("post_id", postID))
 		ResponseError(c, CodeServerBusy)
 		return

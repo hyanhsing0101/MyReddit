@@ -90,7 +90,8 @@ func CreateBoardHandler(c *gin.Context) {
 		switch {
 		case errors.Is(err, logic.ErrBoardSlugReserved),
 			errors.Is(err, logic.ErrBoardSlugInvalid),
-			errors.Is(err, logic.ErrBoardNameEmpty):
+			errors.Is(err, logic.ErrBoardNameEmpty),
+			errors.Is(err, logic.ErrBoardVisibilityInvalid):
 			ResponseErrorWithMsg(c, CodeInvalidParam, err.Error())
 			return
 		case errors.Is(err, postgres.ErrorBoardSlugTaken):

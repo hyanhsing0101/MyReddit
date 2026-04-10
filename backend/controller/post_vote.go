@@ -47,6 +47,10 @@ func VotePostHandler(c *gin.Context) {
 			ResponseErrorWithMsg(c, CodeInvalidParam, "value must be 1, -1, or 0")
 			return
 		}
+		if errors.Is(err, logic.ErrPostSealed) {
+			ResponseError(c, CodePostSealed)
+			return
+		}
 		zap.L().Error("Vote Post Failed", zap.Error(err), zap.Int64("post_id", postID))
 		ResponseError(c, CodeServerBusy)
 		return

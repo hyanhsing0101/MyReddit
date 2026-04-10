@@ -28,6 +28,10 @@ func AddBoardFavoriteHandler(c *gin.Context) {
 			ResponseError(c, CodeBoardNotExist)
 			return
 		}
+		if errors.Is(err, logic.ErrCannotFavoritePublicBoard) {
+			ResponseError(c, CodeCannotFavoritePublicBoard)
+			return
+		}
 		if errors.Is(err, logic.ErrCannotFavoriteSystemBoard) {
 			ResponseErrorWithMsg(c, CodeInvalidParam, err.Error())
 			return

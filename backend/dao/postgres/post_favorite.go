@@ -21,14 +21,16 @@ func RemovePostFavorite(userID, postID int64) error {
 	return err
 }
 
-func CountPostFavoritesByUser(userID int64) (int64, error) {
+func CountPostFavoritesByUser(userID int64, r *PostReader) (int64, error) {
 	var n int64
 	err := db.Get(&n, `
 		SELECT COUNT(*)
 		FROM post_favorite pf
 		INNER JOIN "post" p ON p.id = pf.post_id
-		WHERE pf.user_id = $1 AND p.deleted_at IS NULL
-	`, userID)
+		INNER JOIN "board" b ON b.id = p.board_id
+		WHERE pf.user_id = $1 AND `+postReadableWhere(2, 3),
+		userID, postReaderUID(r), postReaderAdmin(r),
+	)
 	return n, err
 }
 
@@ -52,8 +54,8 @@ func ListPostIDsFavoritedByUser(userID int64, postIDs []int64) (map[int64]struct
 	return out, nil
 }
 
-// ListPostFavoritesByUser 按收藏时间倒序；已软删帖子不返回。
-func ListPostFavoritesByUser(userID int64, limit, offset int) ([]models.Post, []time.Time, error) {
+// ListPostFavoritesByUser 按收藏时间倒序；仅返回当前读者仍可见的帖子。
+func ListPostFavoritesByUser(userID int64, limit, offset int, r *PostReader) ([]models.Post, []time.Time, error) {
 	type row struct {
 		models.Post
 		FavoritedAt time.Time `db:"favorited_at"`
@@ -65,10 +67,10 @@ func ListPostFavoritesByUser(userID int64, limit, offset int) ([]models.Post, []
 		FROM post_favorite pf
 		INNER JOIN "post" p ON p.id = pf.post_id
 		INNER JOIN "board" b ON b.id = p.board_id
-		WHERE pf.user_id = $1 AND p.deleted_at IS NULL
+		WHERE pf.user_id = $1 AND `+postReadableWhere(2, 3)+`
 		ORDER BY pf.create_time DESC
-		LIMIT $2 OFFSET $3
-	`, userID, limit, offset)
+		LIMIT $4 OFFSET $5
+	`, userID, postReaderUID(r), postReaderAdmin(r), limit, offset)
 	if err != nil {
 		return nil, nil, err
 	}

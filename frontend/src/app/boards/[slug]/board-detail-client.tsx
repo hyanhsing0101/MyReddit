@@ -166,12 +166,19 @@ export default function BoardDetailClient() {
                     （系统板）
                   </span>
                 ) : null}
+                {!board.is_system_sink &&
+                (board.visibility ?? "public") === "private" ? (
+                  <span className="ml-2 text-violet-700 dark:text-violet-400">
+                    （私有）
+                  </span>
+                ) : null}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <BoardFavoriteButton
                 boardId={board.id}
                 isSystemSink={board.is_system_sink}
+                visibility={board.visibility ?? "public"}
                 isFavorited={!!board.is_favorited}
                 accessToken={getAccessToken()}
                 onUpdated={(next) =>

@@ -49,6 +49,8 @@ type PostVoteControlsProps = {
   accessToken: string | null;
   onUpdated: (patch: { score: number; my_vote: number | null }) => void;
   compact?: boolean;
+  /** 封帖等场景下禁止改票 */
+  disabled?: boolean;
 };
 
 export function PostVoteControls({
@@ -58,6 +60,7 @@ export function PostVoteControls({
   accessToken,
   onUpdated,
   compact = false,
+  disabled = false,
 }: PostVoteControlsProps) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -68,7 +71,7 @@ export function PostVoteControls({
 
   async function submit(value: 1 | -1 | 0) {
     setErr(null);
-    if (!accessToken) return;
+    if (!accessToken || disabled) return;
     setBusy(true);
     try {
       const body = await apiVotePost(accessToken, postId, value);
@@ -92,13 +95,13 @@ export function PostVoteControls({
   }
 
   function onUp() {
-    if (!loggedIn) return;
+    if (!loggedIn || disabled) return;
     if (myVote === 1) void submit(0);
     else void submit(1);
   }
 
   function onDown() {
-    if (!loggedIn) return;
+    if (!loggedIn || disabled) return;
     if (myVote === -1) void submit(0);
     else void submit(-1);
   }
@@ -122,16 +125,18 @@ export function PostVoteControls({
         <div className="flex items-center gap-px" role="group" aria-label="投票">
           <button
             type="button"
-            disabled={busy || !loggedIn}
+            disabled={busy || !loggedIn || disabled}
             onClick={onUp}
             title={
-              loggedIn
-                ? upActive
-                  ? "取消"
-                  : myVote === -1
-                    ? "改为上"
-                    : "上票"
-                : "登录后可用"
+              disabled
+                ? "该帖已封禁"
+                : loggedIn
+                  ? upActive
+                    ? "取消"
+                    : myVote === -1
+                      ? "改为上"
+                      : "上票"
+                  : "登录后可用"
             }
             className={`${iconBtn} ${upActive ? iconSelUp : ""}`}
             aria-pressed={upActive}
@@ -140,16 +145,18 @@ export function PostVoteControls({
           </button>
           <button
             type="button"
-            disabled={busy || !loggedIn}
+            disabled={busy || !loggedIn || disabled}
             onClick={onDown}
             title={
-              loggedIn
-                ? downActive
-                  ? "取消"
-                  : myVote === 1
-                    ? "改为下"
-                    : "下票"
-                : "登录后可用"
+              disabled
+                ? "该帖已封禁"
+                : loggedIn
+                  ? downActive
+                    ? "取消"
+                    : myVote === 1
+                      ? "改为下"
+                      : "下票"
+                  : "登录后可用"
             }
             className={`${iconBtn} ${downActive ? iconSelDown : ""}`}
             aria-pressed={downActive}

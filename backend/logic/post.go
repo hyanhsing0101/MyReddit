@@ -16,6 +16,10 @@ var (
 	ErrDeletePostForbidden     = errors.New("delete post forbidden")
 	ErrEditPostForbidden       = errors.New("edit post forbidden")
 	ErrTagCountExceedsMaxLimit = errors.New("tag count exceeds the maximum limit")
+	ErrNotBoardMember          = errors.New("not board member")
+	ErrPostSealed              = errors.New("post sealed")
+	ErrSealPostForbidden       = errors.New("seal post forbidden")
+	ErrUnsealPostForbidden     = errors.New("unseal post forbidden")
 )
 
 const MaxPostTagCount = 5
@@ -40,6 +44,13 @@ func CreatePost(p *models.ParamCreatePost, userID int64) error {
 	}
 	if board.IsSystemSink {
 		return ErrCannotPostToSystemBoard
+	}
+	okPost, err := canPostToBoard(userID, board)
+	if err != nil {
+		return err
+	}
+	if !okPost {
+		return ErrNotBoardMember
 	}
 	tagIDs, err := postgres.ValidateTagIDs(p.TagIDs)
 	if err != nil {
@@ -71,17 +82,29 @@ func CreatePost(p *models.ParamCreatePost, userID int64) error {
 // ListPost 分页获取帖子列表，并按登录态附加 my_vote / is_favorited。
 func ListPost(p *models.ParamPostList, viewerID *int64) (*models.PostListData, error) {
 	p.Normalize()
+	r, err := postReader(viewerID)
+	if err != nil {
+		return nil, err
+	}
 	var boardFilter *int64
 	if p.BoardID != nil {
 		if *p.BoardID < 1 {
 			return nil, ErrInvalidBoardID
 		}
-		if _, err := postgres.GetBoardByID(*p.BoardID); err != nil {
+		board, err := postgres.GetBoardByID(*p.BoardID)
+		if err != nil {
 			return nil, err
+		}
+		ok, err := canReadBoard(viewerID, board)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, postgres.ErrorBoardNotExist
 		}
 		boardFilter = p.BoardID
 	}
-	total, err := postgres.CountPosts(boardFilter)
+	total, err := postgres.CountPosts(boardFilter, r)
 	if err != nil {
 		return nil, err
 	}
@@ -91,14 +114,14 @@ func ListPost(p *models.ParamPostList, viewerID *int64) (*models.PostListData, e
 	if p.Sort == models.PostSortHot && boardFilter == nil {
 		cachedIDs, err := redisDao.GetHotPostIDs(p.Page, p.PageSize)
 		if err == nil && len(cachedIDs) > 0 {
-			posts, err = postgres.ListPostsByIDsOrdered(cachedIDs)
+			posts, err = postgres.ListPostsByIDsOrdered(cachedIDs, r)
 			if err != nil {
 				return nil, err
 			}
 		}
 		// 缓存未命中（或命中后被过滤空）则回源 PG，再回填一页缓存。
 		if len(posts) == 0 {
-			posts, err = postgres.ListPosts(boardFilter, p.Sort, p.PageSize, offset)
+			posts, err = postgres.ListPosts(boardFilter, p.Sort, p.PageSize, offset, r)
 			if err != nil {
 				return nil, err
 			}
@@ -109,8 +132,7 @@ func ListPost(p *models.ParamPostList, viewerID *int64) (*models.PostListData, e
 			_ = redisDao.SetHotPostScores(scores)
 		}
 	} else {
-		var err error
-		posts, err = postgres.ListPosts(boardFilter, p.Sort, p.PageSize, offset)
+		posts, err = postgres.ListPosts(boardFilter, p.Sort, p.PageSize, offset, r)
 		if err != nil {
 			return nil, err
 		}
@@ -153,7 +175,11 @@ func ListPost(p *models.ParamPostList, viewerID *int64) (*models.PostListData, e
 
 // GetPost 获取单个帖子详情，并按登录态附加 my_vote / is_favorited。
 func GetPost(id int64, viewerID *int64) (*models.PostView, error) {
-	post, err := postgres.GetPostByID(id)
+	r, err := postReader(viewerID)
+	if err != nil {
+		return nil, err
+	}
+	post, err := postgres.GetPostByID(id, r)
 	if err != nil {
 		return nil, err
 	}
@@ -172,6 +198,13 @@ func GetPost(id int64, viewerID *int64) (*models.PostView, error) {
 			return nil, err
 		}
 		v = slice[0]
+		act, err := moderationActionsForPost(post, *viewerID)
+		if err != nil {
+			return nil, err
+		}
+		if act != nil && (act.CanSeal || act.CanUnseal) {
+			v.ModerationActions = act
+		}
 	}
 	return &v, nil
 }
@@ -225,12 +258,26 @@ func attachPostFavoriteFlags(list []models.PostView, userID int64) error {
 
 // VotePost 上票/下票/取消；返回最新 score 与 my_vote（取消后为 null）。
 func VotePost(postID, userID int64, value int8) (*models.PostVoteResult, error) {
+	r, err := postReader(&userID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := postgres.GetPostByID(postID, r); err != nil {
+		return nil, err
+	}
+	postFull, err := postgres.GetPostByIDIncludingDeleted(postID)
+	if err != nil {
+		return nil, err
+	}
+	if postFull.SealedAt.Valid {
+		return nil, ErrPostSealed
+	}
 	score, myVote, err := postgres.ApplyPostVote(postID, userID, value)
 	if err != nil {
 		return nil, err
 	}
 	// 更新热榜缓存分数（失败可容忍，后续读路径会回源修复）。
-	if p, err := postgres.GetPostByID(postID); err == nil {
+	if p, err := postgres.GetPostByID(postID, r); err == nil {
 		_ = redisDao.UpsertHotPost(postID, calcHotScore(score, p.CreateTime))
 	}
 	return &models.PostVoteResult{
@@ -239,7 +286,7 @@ func VotePost(postID, userID int64, value int8) (*models.PostVoteResult, error) 
 	}, nil
 }
 
-// DeletePost 软删：作者本人或站点管理员；无主帖仅管理员可删；已软删返回 post not exist
+// DeletePost 软删：仅作者本人；无主帖仅站主可删。站主/版主治理请用封帖接口。
 func DeletePost(postID, operatorUserID int64) error {
 	post, err := postgres.GetPostByIDIncludingDeleted(postID)
 	if err != nil {
@@ -252,14 +299,14 @@ func DeletePost(postID, operatorUserID int64) error {
 	if err != nil {
 		return err
 	}
-	if admin {
-		if err := postgres.SoftDeletePost(postID, time.Now()); err != nil {
-			return err
-		}
-		_ = redisDao.RemoveHotPost(postID)
-		return nil
-	}
 	if !post.AuthorID.Valid {
+		if admin {
+			if err := postgres.SoftDeletePost(postID, time.Now()); err != nil {
+				return err
+			}
+			_ = redisDao.RemoveHotPost(postID)
+			return nil
+		}
 		return ErrDeletePostForbidden
 	}
 	if post.AuthorID.Int64 != operatorUserID {
@@ -309,7 +356,11 @@ func UpdatePost(postID, operatorUserID int64, p *models.ParamUpdatePost) error {
 
 // AddPostFavorite 收藏帖子（帖子不存在时返回错误）。
 func AddPostFavorite(userID, postID int64) error {
-	if _, err := postgres.GetPostByID(postID); err != nil {
+	r, err := postReader(&userID)
+	if err != nil {
+		return err
+	}
+	if _, err := postgres.GetPostByID(postID, r); err != nil {
 		return err
 	}
 	return postgres.AddPostFavorite(userID, postID)
@@ -317,7 +368,11 @@ func AddPostFavorite(userID, postID int64) error {
 
 // RemovePostFavorite 取消用户对帖子的收藏。
 func RemovePostFavorite(userID, postID int64) error {
-	if _, err := postgres.GetPostByID(postID); err != nil {
+	r, err := postReader(&userID)
+	if err != nil {
+		return err
+	}
+	if _, err := postgres.GetPostByID(postID, r); err != nil {
 		return err
 	}
 	return postgres.RemovePostFavorite(userID, postID)
@@ -326,12 +381,16 @@ func RemovePostFavorite(userID, postID int64) error {
 // ListMyFavoritePosts 按收藏时间倒序分页返回当前用户收藏帖子。
 func ListMyFavoritePosts(userID int64, p *models.ParamFavoritePostList) (*models.PostFavoriteListData, error) {
 	p.Normalize()
-	total, err := postgres.CountPostFavoritesByUser(userID)
+	r, err := postReader(&userID)
+	if err != nil {
+		return nil, err
+	}
+	total, err := postgres.CountPostFavoritesByUser(userID, r)
 	if err != nil {
 		return nil, err
 	}
 	offset := (p.Page - 1) * p.PageSize
-	posts, favTimes, err := postgres.ListPostFavoritesByUser(userID, p.PageSize, offset)
+	posts, favTimes, err := postgres.ListPostFavoritesByUser(userID, p.PageSize, offset, r)
 	if err != nil {
 		return nil, err
 	}
@@ -356,4 +415,106 @@ func ListMyFavoritePosts(userID int64, p *models.ParamFavoritePostList) (*models
 		Page:     p.Page,
 		PageSize: p.PageSize,
 	}, nil
+}
+
+func moderationActionsForPost(post *models.Post, operatorID int64) (*models.PostModerationActionsView, error) {
+	ok, err := canModerateBoard(operatorID, post.BoardID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, nil
+	}
+	admin, err := postgres.IsSiteAdmin(operatorID)
+	if err != nil {
+		return nil, err
+	}
+	var act models.PostModerationActionsView
+	if !post.SealedAt.Valid {
+		act.CanSeal = true
+		return &act, nil
+	}
+	if admin {
+		act.CanUnseal = true
+		return &act, nil
+	}
+	if post.SealKind.Valid && post.SealKind.String == "moderator" {
+		act.CanUnseal = true
+	}
+	return &act, nil
+}
+
+// SealPost 版主或站主封帖；站主使用 seal_kind=site，版主使用 moderator。
+func SealPost(postID, operatorID int64) error {
+	post, err := postgres.GetPostByIDIncludingDeleted(postID)
+	if err != nil {
+		return err
+	}
+	if post.DeletedAt.Valid {
+		return postgres.ErrorPostNotExist
+	}
+	if post.SealedAt.Valid {
+		return postgres.ErrorPostNotExist
+	}
+	ok, err := canModerateBoard(operatorID, post.BoardID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrSealPostForbidden
+	}
+	admin, err := postgres.IsSiteAdmin(operatorID)
+	if err != nil {
+		return err
+	}
+	kind := "moderator"
+	if admin {
+		kind = "site"
+	}
+	now := time.Now()
+	if err := postgres.SealPost(postID, operatorID, kind, now); err != nil {
+		return err
+	}
+	_ = redisDao.RemoveHotPost(postID)
+	return nil
+}
+
+// UnsealPost 解封：站主任意解封；版主仅可解封 moderator 类封帖。
+func UnsealPost(postID, operatorID int64) error {
+	post, err := postgres.GetPostByIDIncludingDeleted(postID)
+	if err != nil {
+		return err
+	}
+	if post.DeletedAt.Valid || !post.SealedAt.Valid {
+		return postgres.ErrorPostNotExist
+	}
+	admin, err := postgres.IsSiteAdmin(operatorID)
+	if err != nil {
+		return err
+	}
+	if admin {
+		return finishUnseal(postID)
+	}
+	mod, err := postgres.IsBoardModerator(operatorID, post.BoardID)
+	if err != nil {
+		return err
+	}
+	if !mod {
+		return ErrUnsealPostForbidden
+	}
+	if post.SealKind.Valid && post.SealKind.String == "site" {
+		return ErrUnsealPostForbidden
+	}
+	return finishUnseal(postID)
+}
+
+func finishUnseal(postID int64) error {
+	now := time.Now()
+	if err := postgres.UnsealPost(postID, now); err != nil {
+		return err
+	}
+	if p, err := postgres.GetPostByIDIncludingDeleted(postID); err == nil && !p.DeletedAt.Valid {
+		_ = redisDao.UpsertHotPost(postID, calcHotScore(p.Score, p.CreateTime))
+	}
+	return nil
 }

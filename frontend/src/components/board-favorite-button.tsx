@@ -11,6 +11,8 @@ import {
 type Props = {
   boardId: number;
   isSystemSink: boolean;
+  /** public 板不提供订阅 */
+  visibility: string;
   isFavorited: boolean;
   accessToken: string | null | undefined;
   onUpdated: (next: boolean) => void;
@@ -20,6 +22,7 @@ type Props = {
 export function BoardFavoriteButton({
   boardId,
   isSystemSink,
+  visibility,
   isFavorited,
   accessToken,
   onUpdated,
@@ -27,7 +30,8 @@ export function BoardFavoriteButton({
 }: Props) {
   const [busy, setBusy] = useState(false);
   const token = accessToken ?? "";
-  if (isSystemSink || !token) return null;
+  const vis = visibility || "public";
+  if (isSystemSink || vis === "public" || !token) return null;
 
   async function toggle(e: React.MouseEvent) {
     e.preventDefault();
@@ -55,10 +59,10 @@ export function BoardFavoriteButton({
       type="button"
       disabled={busy}
       onClick={toggle}
-      title={isFavorited ? "取消收藏" : "收藏板块"}
+      title={isFavorited ? "取消订阅" : "订阅板块（私有板）"}
       className={`shrink-0 rounded-lg border border-zinc-300 px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-600 ${className}`}
     >
-      {busy ? "…" : isFavorited ? "★ 已收藏" : "☆ 收藏"}
+      {busy ? "…" : isFavorited ? "★ 已订阅" : "☆ 订阅"}
     </button>
   );
 }

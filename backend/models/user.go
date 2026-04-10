@@ -10,10 +10,11 @@ type User struct {
 }
 
 type MePermissionsView struct {
-	UserID      int64    `json:"user_id"`
-	Username    string   `json:"username"`
-	Roles       []string `json:"roles"`
-	IsSiteAdmin bool     `json:"is_site_admin"`
+	UserID            int64   `json:"user_id"`
+	Username          string  `json:"username"`
+	Roles             []string `json:"roles"`
+	IsSiteAdmin       bool    `json:"is_site_admin"`
+	ModeratedBoardIDs []int64 `json:"moderated_board_ids"`
 }
 
 type UserHomePostItem struct {

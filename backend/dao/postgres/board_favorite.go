@@ -15,6 +15,19 @@ func AddBoardFavorite(userID, boardID int64) error {
 	return err
 }
 
+// HasBoardFavorite 用户是否已收藏（订阅）该板块。
+func HasBoardFavorite(userID, boardID int64) (bool, error) {
+	var n int64
+	err := db.Get(&n, `
+		SELECT COUNT(*) FROM board_favorite WHERE user_id = $1 AND board_id = $2`,
+		userID, boardID,
+	)
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
 func RemoveBoardFavorite(userID, boardID int64) error {
 	_, err := db.Exec(`
 		DELETE FROM board_favorite WHERE user_id = $1 AND board_id = $2
@@ -56,6 +69,7 @@ func ListBoardFavoritesByUser(userID int64, limit, offset int) ([]models.Board, 
 		Name         string         `db:"name"`
 		Description  sql.NullString `db:"description"`
 		CreatedBy    sql.NullInt64  `db:"created_by"`
+		Visibility   string         `db:"visibility"`
 		IsSystemSink bool           `db:"is_system_sink"`
 		CreateTime   time.Time      `db:"create_time"`
 		UpdateTime   time.Time      `db:"update_time"`
@@ -63,7 +77,7 @@ func ListBoardFavoritesByUser(userID int64, limit, offset int) ([]models.Board, 
 	}
 	var rows []row
 	err := db.Select(&rows, `
-		SELECT b.id, b.slug, b.name, b.description, b.created_by, b.is_system_sink, b.create_time, b.update_time,
+		SELECT b.id, b.slug, b.name, b.description, b.created_by, b.visibility, b.is_system_sink, b.create_time, b.update_time,
 		       bf.create_time AS favorited_at
 		FROM board_favorite bf
 		INNER JOIN "board" b ON b.id = bf.board_id
@@ -83,6 +97,7 @@ func ListBoardFavoritesByUser(userID int64, limit, offset int) ([]models.Board, 
 			Name:         r.Name,
 			Description:  r.Description,
 			CreatedBy:    r.CreatedBy,
+			Visibility:   r.Visibility,
 			IsSystemSink: r.IsSystemSink,
 			CreateTime:   r.CreateTime,
 			UpdateTime:   r.UpdateTime,

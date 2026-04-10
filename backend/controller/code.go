@@ -37,6 +37,9 @@ const (
 	// 权限
 	// =============================================================================
 	CodeForbidden
+	CodeNotBoardMember
+	CodeCannotFavoritePublicBoard
+	CodePostSealed
 )
 
 var codeMsgMap = map[ResCode]string{
@@ -60,7 +63,10 @@ var codeMsgMap = map[ResCode]string{
 	CodeBoardSlugTaken: "board slug taken",
 
 	// ----- 权限 -----
-	CodeForbidden: "forbidden",
+	CodeForbidden:                "forbidden",
+	CodeNotBoardMember:           "not board member",
+	CodeCannotFavoritePublicBoard: "cannot favorite public board",
+	CodePostSealed:                "post sealed",
 }
 
 func (c ResCode) Msg() string {

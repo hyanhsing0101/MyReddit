@@ -11,6 +11,7 @@ export default function NewBoardPage() {
   const [slug, setSlug] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [visibility, setVisibility] = useState<"public" | "private">("public");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [hasToken, setHasToken] = useState<boolean | null>(null);
@@ -33,6 +34,7 @@ export default function NewBoardPage() {
         slug,
         name,
         description: description.trim() || undefined,
+        visibility,
       });
       if (body.code !== API_SUCCESS_CODE) {
         setError(apiErrorMessage(body));
@@ -108,6 +110,27 @@ export default function NewBoardPage() {
             maxLength={128}
           />
         </label>
+        <fieldset className="flex flex-col gap-2 text-sm">
+          <legend className="text-zinc-600 dark:text-zinc-400">可见性</legend>
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="radio"
+              name="visibility"
+              checked={visibility === "public"}
+              onChange={() => setVisibility("public")}
+            />
+            <span>公开：任何人可读；登录即可发帖；不可订阅</span>
+          </label>
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="radio"
+              name="visibility"
+              checked={visibility === "private"}
+              onChange={() => setVisibility("private")}
+            />
+            <span>私有：仅订阅成员与版主可读帖、发帖</span>
+          </label>
+        </fieldset>
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-zinc-600 dark:text-zinc-400">描述（可选）</span>
           <textarea

@@ -55,6 +55,10 @@ func VoteCommentHandler(c *gin.Context) {
 			ResponseErrorWithMsg(c, CodeInvalidParam, "value must be 1, -1, or 0")
 			return
 		}
+		if errors.Is(err, logic.ErrPostSealed) {
+			ResponseError(c, CodePostSealed)
+			return
+		}
 		zap.L().Error("VoteComment Failed", zap.Error(err), zap.Int64("post_id", postID), zap.Int64("comment_id", commentID))
 		ResponseError(c, CodeServerBusy)
 		return

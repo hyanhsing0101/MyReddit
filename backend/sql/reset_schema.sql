@@ -9,6 +9,7 @@ DROP TABLE IF EXISTS "post_vote";
 DROP TABLE IF EXISTS "post_favorite";
 DROP TABLE IF EXISTS "post";
 DROP TABLE IF EXISTS "board_favorite";
+DROP TABLE IF EXISTS "board_moderator";
 DROP TABLE IF EXISTS "board";
 DROP TABLE IF EXISTS "user";
 
@@ -32,6 +33,7 @@ CREATE TABLE "board" (
     name VARCHAR(128) NOT NULL,
     description TEXT,
     created_by BIGINT,
+    visibility VARCHAR(16) NOT NULL DEFAULT 'public',
     is_system_sink BOOLEAN NOT NULL DEFAULT FALSE,
     search_vector tsvector GENERATED ALWAYS AS (
         setweight(to_tsvector('simple', coalesce(name, '')), 'A') ||
@@ -41,9 +43,22 @@ CREATE TABLE "board" (
     create_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT board_slug_unique UNIQUE (slug),
+    CONSTRAINT board_visibility_check CHECK (visibility IN ('public', 'private')),
     CONSTRAINT board_created_by_fk FOREIGN KEY (created_by) REFERENCES "user" (user_id) ON DELETE SET NULL
 );
 CREATE INDEX idx_board_created_by ON "board" (created_by);
+CREATE INDEX idx_board_visibility ON "board" (visibility);
+
+-- 板块版主（创建者写入首行，后续可扩展任命）
+CREATE TABLE "board_moderator" (
+    user_id BIGINT NOT NULL,
+    board_id BIGINT NOT NULL,
+    create_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT board_moderator_pk PRIMARY KEY (user_id, board_id),
+    CONSTRAINT board_moderator_user_fk FOREIGN KEY (user_id) REFERENCES "user" (user_id) ON DELETE CASCADE,
+    CONSTRAINT board_moderator_board_fk FOREIGN KEY (board_id) REFERENCES "board" (id) ON DELETE CASCADE
+);
+CREATE INDEX idx_board_moderator_board_id ON "board_moderator" (board_id);
 CREATE INDEX idx_board_search_vector ON "board" USING GIN (search_vector);
 
 -- 用户收藏板块（订阅/星标）
@@ -65,6 +80,9 @@ CREATE TABLE "post" (
     content TEXT NOT NULL,
     author_id BIGINT,
     deleted_at TIMESTAMPTZ,
+    sealed_at TIMESTAMPTZ,
+    sealed_by_user_id BIGINT,
+    seal_kind VARCHAR(16),
     search_vector tsvector GENERATED ALWAYS AS (
         setweight(to_tsvector('simple', coalesce(title, '')), 'A') ||
         setweight(to_tsvector('simple', coalesce(content, '')), 'B')
@@ -73,7 +91,9 @@ CREATE TABLE "post" (
     create_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT post_board_id_fk FOREIGN KEY (board_id) REFERENCES "board" (id) ON DELETE RESTRICT,
-    CONSTRAINT post_author_id_foreign FOREIGN KEY (author_id) REFERENCES "user" (user_id) ON DELETE SET NULL
+    CONSTRAINT post_author_id_foreign FOREIGN KEY (author_id) REFERENCES "user" (user_id) ON DELETE SET NULL,
+    CONSTRAINT post_sealed_by_fk FOREIGN KEY (sealed_by_user_id) REFERENCES "user" (user_id) ON DELETE SET NULL,
+    CONSTRAINT post_seal_kind_check CHECK (seal_kind IS NULL OR seal_kind IN ('moderator', 'site'))
 );
 CREATE INDEX idx_post_board_id ON "post" (board_id);
 CREATE INDEX idx_post_board_create_time ON "post" (board_id, create_time DESC);

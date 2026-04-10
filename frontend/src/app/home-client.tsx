@@ -108,7 +108,7 @@ export default function HomeClient() {
     setSearching(true);
     setSearchError(null);
     try {
-      const body = await apiSearch(q, searchScope, 20, 10);
+      const body = await apiSearch(q, searchScope, 20, 10, getAccessToken());
       if (body.code !== API_SUCCESS_CODE || !body.data) {
         setSearchError(apiErrorMessage(body));
         setSearchPosts([]);

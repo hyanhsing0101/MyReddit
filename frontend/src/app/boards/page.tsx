@@ -116,6 +116,7 @@ export default function BoardsPage() {
                 <BoardFavoriteButton
                   boardId={b.id}
                   isSystemSink={b.is_system_sink}
+                  visibility={b.visibility ?? "public"}
                   isFavorited={!!b.is_favorited}
                   accessToken={getAccessToken()}
                   onUpdated={(next) => {
