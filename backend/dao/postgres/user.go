@@ -75,6 +75,9 @@ func GetUsernameByUserID(userID int64) (string, error) {
 	var username string
 	sqlStr := `select username from "user" where user_id = $1`
 	err := db.Get(&username, sqlStr, userID)
+	if err == sql.ErrNoRows {
+		return "", ErrorUserNotExist
+	}
 	if err != nil {
 		return "", err
 	}

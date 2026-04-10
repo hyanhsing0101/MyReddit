@@ -69,10 +69,10 @@ export default function BoardFavoritesPage() {
           </p>
         </div>
         <Link
-          href="/boards"
+          href="/favorites"
           className="rounded-lg border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-600"
         >
-          全部板块
+          回收藏夹
         </Link>
       </div>
 

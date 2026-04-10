@@ -227,3 +227,35 @@ func (p *ParamTagList) Normalize() {
 		p.PageSize = 200
 	}
 }
+
+// =============================================================================
+// 用户主页
+// =============================================================================
+
+type ParamUserHome struct {
+	PostPage       int `form:"post_page"`
+	PostPageSize   int `form:"post_page_size"`
+	CommentPage    int `form:"comment_page"`
+	CommentPageSize int `form:"comment_page_size"`
+}
+
+func (p *ParamUserHome) Normalize() {
+	if p.PostPage < 1 {
+		p.PostPage = 1
+	}
+	if p.PostPageSize < 1 {
+		p.PostPageSize = 10
+	}
+	if p.PostPageSize > 50 {
+		p.PostPageSize = 50
+	}
+	if p.CommentPage < 1 {
+		p.CommentPage = 1
+	}
+	if p.CommentPageSize < 1 {
+		p.CommentPageSize = 10
+	}
+	if p.CommentPageSize > 50 {
+		p.CommentPageSize = 50
+	}
+}

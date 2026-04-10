@@ -6,6 +6,7 @@ import (
 	"myreddit/dao/postgres"
 	"myreddit/logic"
 	"myreddit/models"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -64,4 +65,30 @@ func LoginHandler(c *gin.Context) {
 	}
 
 	ResponseSuccess(c, tokenPair)
+}
+
+// GetUserHomeHandler 获取用户主页数据（帖子与评论双列表）。
+func GetUserHomeHandler(c *gin.Context) {
+	idStr := c.Param("id")
+	userID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || userID < 1 {
+		ResponseError(c, CodeInvalidParam)
+		return
+	}
+	p := new(models.ParamUserHome)
+	if err := c.ShouldBindQuery(p); err != nil {
+		ResponseError(c, CodeInvalidParam)
+		return
+	}
+	data, err := logic.GetUserHome(userID, p)
+	if err != nil {
+		if errors.Is(err, postgres.ErrorUserNotExist) {
+			ResponseError(c, CodeUserNotExist)
+			return
+		}
+		zap.L().Error("GetUserHome Failed", zap.Error(err), zap.Int64("user_id", userID))
+		ResponseError(c, CodeServerBusy)
+		return
+	}
+	ResponseSuccess(c, data)
 }

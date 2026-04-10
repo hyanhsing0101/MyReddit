@@ -144,3 +144,63 @@ func MePermissions(userID int64) (*models.MePermissionsView, error) {
 		IsSiteAdmin: admin,
 	}, nil
 }
+
+// GetUserHome 获取用户主页数据（帖子与评论双列表分页）。
+func GetUserHome(userID int64, p *models.ParamUserHome) (*models.UserHomeData, error) {
+	p.Normalize()
+	username, err := postgres.GetUsernameByUserID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	postsTotal, err := postgres.CountPostsByAuthorID(userID)
+	if err != nil {
+		return nil, err
+	}
+	postOffset := (p.PostPage - 1) * p.PostPageSize
+	postRows, err := postgres.ListPostsByAuthorID(userID, p.PostPageSize, postOffset)
+	if err != nil {
+		return nil, err
+	}
+	posts := make([]models.UserHomePostItem, 0, len(postRows))
+	for _, row := range postRows {
+		item := models.UserHomePostItem{
+			ID:         row.ID,
+			BoardID:    row.BoardID,
+			Title:      row.Title,
+			Score:      row.Score,
+			CreateTime: row.CreateTime,
+			UpdateTime: row.UpdateTime,
+		}
+		if row.BoardSlug.Valid {
+			item.BoardSlug = row.BoardSlug.String
+		}
+		if row.BoardName.Valid {
+			item.BoardName = row.BoardName.String
+		}
+		posts = append(posts, item)
+	}
+
+	commentsTotal, err := postgres.CountCommentsByAuthorID(userID)
+	if err != nil {
+		return nil, err
+	}
+	commentOffset := (p.CommentPage - 1) * p.CommentPageSize
+	comments, err := postgres.ListCommentsByAuthorID(userID, p.CommentPageSize, commentOffset)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.UserHomeData{
+		UserID:          userID,
+		Username:        username,
+		Posts:           posts,
+		PostsTotal:      postsTotal,
+		PostPage:        p.PostPage,
+		PostPageSize:    p.PostPageSize,
+		Comments:        comments,
+		CommentsTotal:   commentsTotal,
+		CommentPage:     p.CommentPage,
+		CommentPageSize: p.CommentPageSize,
+	}, nil
+}

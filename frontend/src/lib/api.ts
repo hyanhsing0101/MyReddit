@@ -6,6 +6,8 @@ export const API_SUCCESS_CODE = 1000;
 export const API_NEED_LOGIN_CODE = 1007;
 /** 与后端 controller.CodePostNotExist 一致 */
 export const API_POST_NOT_EXIST_CODE = 1008;
+/** 与后端 controller.CodeUserNotExist 一致 */
+export const API_USER_NOT_EXIST_CODE = 1003;
 /** 与后端 controller.CodeForbidden 一致 */
 export const API_FORBIDDEN_CODE = 1011;
 
@@ -260,6 +262,57 @@ export type MePermissionsPayload = {
   roles: string[];
   is_site_admin: boolean;
 };
+
+export type UserHomePostItem = {
+  id: number;
+  board_id: number;
+  board_slug: string;
+  board_name: string;
+  title: string;
+  score: number;
+  create_time: string;
+  update_time: string;
+};
+
+export type UserHomeCommentItem = {
+  id: number;
+  post_id: number;
+  post_title: string;
+  content: string;
+  score: number;
+  create_time: string;
+  update_time: string;
+};
+
+export type UserHomePayload = {
+  user_id: number;
+  username: string;
+  posts: UserHomePostItem[];
+  posts_total: number;
+  post_page: number;
+  post_page_size: number;
+  comments: UserHomeCommentItem[];
+  comments_total: number;
+  comment_page: number;
+  comment_page_size: number;
+};
+
+export async function apiGetUserHome(
+  userId: number,
+  postPage = 1,
+  postPageSize = 10,
+  commentPage = 1,
+  commentPageSize = 10,
+): Promise<ApiResponse<UserHomePayload>> {
+  const q = new URLSearchParams({
+    post_page: String(postPage),
+    post_page_size: String(postPageSize),
+    comment_page: String(commentPage),
+    comment_page_size: String(commentPageSize),
+  });
+  const res = await fetch(`${API_BASE}/users/${userId}/home?${q.toString()}`);
+  return parseJson<UserHomePayload>(res);
+}
 
 export async function apiMePermissions(
   accessToken: string,

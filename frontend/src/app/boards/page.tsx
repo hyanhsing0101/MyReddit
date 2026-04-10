@@ -70,10 +70,10 @@ export default function BoardsPage() {
         <div className="flex flex-wrap gap-3 text-sm">
           {getAccessToken() ? (
             <Link
-              href="/boards/favorites"
+              href="/favorites"
               className="rounded-lg border border-zinc-300 px-4 py-2 dark:border-zinc-600"
             >
-              我的收藏
+              收藏夹
             </Link>
           ) : null}
           <Link

@@ -95,9 +95,18 @@ function CommentBranch({
         />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-2 text-sm">
-            <span className="font-medium text-zinc-800 dark:text-zinc-200">
-              {label}
-            </span>
+            {node.author_id != null ? (
+              <Link
+                href={`/users/${node.author_id}`}
+                className="font-medium text-zinc-800 underline dark:text-zinc-200"
+              >
+                {label}
+              </Link>
+            ) : (
+              <span className="font-medium text-zinc-800 dark:text-zinc-200">
+                {label}
+              </span>
+            )}
             <span className="text-xs text-zinc-500">
               {new Date(node.create_time).toLocaleString("zh-CN", {
                 month: "numeric",
@@ -445,9 +454,13 @@ export default function PostDetailPage() {
                   <span> · </span>
                 </>
               ) : null}
-              {post.author_id != null
-                ? `作者 ID ${post.author_id}`
-                : "无主帖"}{" "}
+              {post.author_id != null ? (
+                <Link href={`/users/${post.author_id}`} className="underline">
+                  作者 ID {post.author_id}
+                </Link>
+              ) : (
+                "无主帖"
+              )}{" "}
               ·{" "}
               {new Date(post.create_time).toLocaleString("zh-CN", {
                 year: "numeric",

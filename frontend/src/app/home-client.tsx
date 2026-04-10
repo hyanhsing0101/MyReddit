@@ -201,16 +201,10 @@ export default function HomeClient() {
               板块
             </Link>
             <Link
-              href="/boards/favorites"
+              href="/favorites"
               className="rounded-lg border border-zinc-300 px-4 py-2 dark:border-zinc-600"
             >
-              收藏板块
-            </Link>
-            <Link
-              href="/posts/favorites"
-              className="rounded-lg border border-zinc-300 px-4 py-2 dark:border-zinc-600"
-            >
-              收藏帖子
+              收藏夹
             </Link>
             <Link
               href="/post/new"
@@ -424,9 +418,18 @@ export default function HomeClient() {
                       <span> · </span>
                     </>
                   ) : null}
-                  {post.author_id != null
-                    ? `作者 ID ${post.author_id}`
-                    : "无主帖"}{" "}
+                  {post.author_id != null ? (
+                    <>
+                      <Link
+                        href={`/users/${post.author_id}`}
+                        className="text-zinc-700 underline dark:text-zinc-300"
+                      >
+                        作者 ID {post.author_id}
+                      </Link>
+                    </>
+                  ) : (
+                    "无主帖"
+                  )}{" "}
                   ·{" "}
                   {new Date(post.create_time).toLocaleString("zh-CN", {
                     month: "numeric",

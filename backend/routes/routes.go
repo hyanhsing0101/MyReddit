@@ -88,6 +88,10 @@ func SetupRouter(mode string) *gin.Engine {
 	// Postman：GET {{baseUrl}}/search?q=t1&scope=posts&post_limit=20&board_limit=10。
 	r.GET("/search", controller.SearchHandler)
 
+	// 功能：用户主页（帖子与评论双列表分页）。
+	// Postman：GET {{baseUrl}}/users/100001/home?post_page=1&post_page_size=10&comment_page=1&comment_page_size=10。
+	r.GET("/users/:id/home", controller.GetUserHomeHandler)
+
 	// 功能：任意登录用户查看自己的权限。
 	r.GET("/me/permissions", middleware.JWTAuthMiddleware(), controller.MePermissionsHandler)
 	// 功能：当前用户收藏的板块列表（按收藏时间倒序分页）。
