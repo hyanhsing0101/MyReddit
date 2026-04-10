@@ -263,8 +263,8 @@ export async function apiUnsealPost(
   accessToken: string,
   postId: number,
 ): Promise<ApiResponse<null>> {
-  const res = await fetch(`${API_BASE}/posts/${postId}/unseal`, {
-    method: "POST",
+  const res = await fetch(`${API_BASE}/posts/${postId}/seal`, {
+    method: "DELETE",
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   return parseJson<null>(res);
@@ -274,7 +274,7 @@ export async function apiAddPostFavorite(
   accessToken: string,
   postId: number,
 ): Promise<ApiResponse<null>> {
-  const res = await fetch(`${API_BASE}/posts/${postId}/favorite`, {
+  const res = await fetch(`${API_BASE}/posts/${postId}/favorites`, {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -285,8 +285,8 @@ export async function apiRemovePostFavorite(
   accessToken: string,
   postId: number,
 ): Promise<ApiResponse<null>> {
-  const res = await fetch(`${API_BASE}/posts/${postId}/unfavorite`, {
-    method: "POST",
+  const res = await fetch(`${API_BASE}/posts/${postId}/favorites`, {
+    method: "DELETE",
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   return parseJson<null>(res);
@@ -371,7 +371,7 @@ export async function apiCreatePost(
   accessToken: string,
   payload: { board_id: number; tag_ids: number[]; title: string; content: string },
 ): Promise<ApiResponse<null>> {
-  const res = await fetch(`${API_BASE}/post`, {
+  const res = await fetch(`${API_BASE}/posts`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -387,8 +387,8 @@ export async function apiUpdatePost(
   postId: number,
   payload: { tag_ids: number[]; title: string; content: string },
 ): Promise<ApiResponse<null>> {
-  const res = await fetch(`${API_BASE}/posts/${postId}/edit`, {
-    method: "POST",
+  const res = await fetch(`${API_BASE}/posts/${postId}`, {
+    method: "PATCH",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${accessToken}`,
@@ -479,7 +479,7 @@ export async function apiGetBoardBySlug(
     headers.Authorization = `Bearer ${accessToken}`;
   }
   const res = await fetch(
-    `${API_BASE}/boards/slug/${encodeURIComponent(slug)}`,
+    `${API_BASE}/boards/by-slug/${encodeURIComponent(slug)}`,
     { headers },
   );
   return parseJson<BoardItem>(res);
@@ -552,7 +552,7 @@ export async function apiAddBoardFavorite(
   accessToken: string,
   boardId: number,
 ): Promise<ApiResponse<null>> {
-  const res = await fetch(`${API_BASE}/boards/${boardId}/favorite`, {
+  const res = await fetch(`${API_BASE}/boards/${boardId}/favorites`, {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -563,8 +563,8 @@ export async function apiRemoveBoardFavorite(
   accessToken: string,
   boardId: number,
 ): Promise<ApiResponse<null>> {
-  const res = await fetch(`${API_BASE}/boards/${boardId}/unfavorite`, {
-    method: "POST",
+  const res = await fetch(`${API_BASE}/boards/${boardId}/favorites`, {
+    method: "DELETE",
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   return parseJson<null>(res);
@@ -623,9 +623,9 @@ export async function apiUpdateBoardModeratorRole(
   role: BoardModeratorRole,
 ): Promise<ApiResponse<null>> {
   const res = await fetch(
-    `${API_BASE}/boards/${boardId}/moderators/${userId}/role`,
+    `${API_BASE}/boards/${boardId}/moderators/${userId}`,
     {
-      method: "POST",
+      method: "PATCH",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
