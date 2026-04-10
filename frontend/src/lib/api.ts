@@ -487,6 +487,21 @@ export async function apiGetBoardBySlug(
 
 export type BoardFavoriteRow = BoardItem & { favorited_at: string };
 
+export type BoardModeratorRole = "owner" | "moderator";
+
+export type BoardModeratorItem = {
+  user_id: number;
+  username: string;
+  role: BoardModeratorRole;
+  appointed_by: number | null;
+  create_time: string;
+  update_time: string;
+};
+
+export type BoardModeratorListPayload = {
+  list: BoardModeratorItem[];
+};
+
 export type BoardFavoriteListPayload = {
   list: BoardFavoriteRow[];
   total: number;
@@ -571,6 +586,64 @@ export async function apiCreateBoard(
       Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify(payload),
+  });
+  return parseJson<null>(res);
+}
+
+export async function apiListBoardModerators(
+  accessToken: string,
+  boardId: number,
+): Promise<ApiResponse<BoardModeratorListPayload>> {
+  const res = await fetch(`${API_BASE}/boards/${boardId}/moderators`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<BoardModeratorListPayload>(res);
+}
+
+export async function apiAddBoardModerator(
+  accessToken: string,
+  boardId: number,
+  payload: { user_id: number; role: BoardModeratorRole },
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/boards/${boardId}/moderators`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  return parseJson<null>(res);
+}
+
+export async function apiUpdateBoardModeratorRole(
+  accessToken: string,
+  boardId: number,
+  userId: number,
+  role: BoardModeratorRole,
+): Promise<ApiResponse<null>> {
+  const res = await fetch(
+    `${API_BASE}/boards/${boardId}/moderators/${userId}/role`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ role }),
+    },
+  );
+  return parseJson<null>(res);
+}
+
+export async function apiRemoveBoardModerator(
+  accessToken: string,
+  boardId: number,
+  userId: number,
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/boards/${boardId}/moderators/${userId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
   return parseJson<null>(res);
 }

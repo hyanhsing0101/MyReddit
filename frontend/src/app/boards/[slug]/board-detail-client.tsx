@@ -195,6 +195,14 @@ export default function BoardDetailClient() {
                   在本板发帖
                 </Link>
               ) : null}
+              {getAccessToken() && !board.is_system_sink ? (
+                <Link
+                  href={`/boards/${encodeURIComponent(board.slug)}/moderators`}
+                  className="rounded-lg border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-600"
+                >
+                  版主管理
+                </Link>
+              ) : null}
             </div>
           </div>
           {board.description ? (

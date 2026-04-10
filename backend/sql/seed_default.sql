@@ -21,11 +21,14 @@ INSERT INTO "board" (slug, name, description, visibility, is_system_sink, create
     ('private_lab', '私有联调板', '仅成员可见；用于测试私有版与订阅。', 'private', FALSE, 10002);
 
 -- 有创建者的非系统板：创建者为版主
-INSERT INTO board_moderator (user_id, board_id, create_time)
-SELECT b.created_by, b.id, NOW()
+INSERT INTO board_moderator (user_id, board_id, role, appointed_by, create_time, update_time)
+SELECT b.created_by, b.id, 'owner', b.created_by, NOW(), NOW()
 FROM board b
 WHERE b.is_system_sink = FALSE AND b.created_by IS NOT NULL
-ON CONFLICT (user_id, board_id) DO NOTHING;
+ON CONFLICT (user_id, board_id) DO UPDATE
+SET role = EXCLUDED.role,
+    appointed_by = EXCLUDED.appointed_by,
+    update_time = EXCLUDED.update_time;
 
 INSERT INTO "post" (board_id, title, content, author_id)
 SELECT b.id, 't1', 'c1', 10002 FROM "board" b WHERE b.slug = 't'

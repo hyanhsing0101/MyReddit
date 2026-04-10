@@ -69,3 +69,15 @@ func canModerateBoard(userID, boardID int64) (bool, error) {
 	}
 	return postgres.IsBoardModerator(userID, boardID)
 }
+
+// canManageModerators 站主或 owner 可管理本板版主。
+func canManageModerators(userID, boardID int64) (bool, error) {
+	admin, err := postgres.IsSiteAdmin(userID)
+	if err != nil {
+		return false, err
+	}
+	if admin {
+		return true, nil
+	}
+	return postgres.IsBoardOwner(userID, boardID)
+}

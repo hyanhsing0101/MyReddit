@@ -6,8 +6,10 @@ import (
 )
 
 const (
-	BoardVisibilityPublic  = "public"
-	BoardVisibilityPrivate = "private"
+	BoardVisibilityPublic       = "public"
+	BoardVisibilityPrivate      = "private"
+	BoardModeratorRoleOwner     = "owner"
+	BoardModeratorRoleModerator = "moderator"
 )
 
 type Board struct {
@@ -77,4 +79,41 @@ type BoardFavoriteListData struct {
 	Total    int64               `json:"total"`
 	Page     int                 `json:"page"`
 	PageSize int                 `json:"page_size"`
+}
+
+// BoardModerator 板块版主关系（含 owner/moderator 角色）。
+type BoardModerator struct {
+	UserID      int64          `db:"user_id" json:"user_id"`
+	BoardID     int64          `db:"board_id" json:"board_id"`
+	Role        string         `db:"role" json:"role"`
+	Username    sql.NullString `db:"username" json:"-"`
+	AppointedBy sql.NullInt64  `db:"appointed_by" json:"appointed_by"`
+	CreateTime  time.Time      `db:"create_time" json:"create_time"`
+	UpdateTime  time.Time      `db:"update_time" json:"update_time"`
+}
+
+type BoardModeratorView struct {
+	UserID      int64     `json:"user_id"`
+	Username    string    `json:"username"`
+	Role        string    `json:"role"`
+	AppointedBy *int64    `json:"appointed_by"`
+	CreateTime  time.Time `json:"create_time"`
+	UpdateTime  time.Time `json:"update_time"`
+}
+
+func BoardModeratorToView(m BoardModerator) BoardModeratorView {
+	v := BoardModeratorView{
+		UserID:     m.UserID,
+		Role:       m.Role,
+		CreateTime: m.CreateTime,
+		UpdateTime: m.UpdateTime,
+	}
+	if m.Username.Valid {
+		v.Username = m.Username.String
+	}
+	if m.AppointedBy.Valid {
+		id := m.AppointedBy.Int64
+		v.AppointedBy = &id
+	}
+	return v
 }

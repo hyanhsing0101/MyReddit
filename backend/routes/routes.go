@@ -89,6 +89,18 @@ func SetupRouter(mode string) *gin.Engine {
 	// 功能：登录用户创建板块（slug 小写+数字+下划线，且不能占用保留名 _archived）。
 	// Postman：POST {{baseUrl}}/boards · Bearer · Body raw JSON：{"slug":"my_board","name":"展示名","description":"可选"}。
 	r.POST("/boards", middleware.JWTAuthMiddleware(), controller.CreateBoardHandler)
+	// 功能：板块版主列表（含 owner/moderator），需登录。
+	// Postman：GET {{baseUrl}}/boards/1/moderators · Bearer。
+	r.GET("/boards/:id/moderators", middleware.JWTAuthMiddleware(), controller.ListBoardModeratorsHandler)
+	// 功能：任命/更新板主角色（owner 或 moderator），仅 owner/站主。
+	// Postman：POST {{baseUrl}}/boards/1/moderators · Bearer · Body {"user_id":10002,"role":"moderator"}。
+	r.POST("/boards/:id/moderators", middleware.JWTAuthMiddleware(), controller.AddBoardModeratorHandler)
+	// 功能：调整板主角色，仅 owner/站主。
+	// Postman：POST {{baseUrl}}/boards/1/moderators/10002/role · Bearer · Body {"role":"owner"}。
+	r.POST("/boards/:id/moderators/:uid/role", middleware.JWTAuthMiddleware(), controller.UpdateBoardModeratorRoleHandler)
+	// 功能：移除板主，仅 owner/站主；最后一个 owner 不可移除。
+	// Postman：DELETE {{baseUrl}}/boards/1/moderators/10002 · Bearer。
+	r.DELETE("/boards/:id/moderators/:uid", middleware.JWTAuthMiddleware(), controller.RemoveBoardModeratorHandler)
 
 	// 功能：全站搜索（FTS，scope=all|posts|boards 控制范围）。可选 Bearer 以按权限过滤私有板/不可见帖。
 	// Postman：GET {{baseUrl}}/search?q=t1&scope=posts&post_limit=20&board_limit=10。

@@ -53,12 +53,18 @@ CREATE INDEX idx_board_visibility ON "board" (visibility);
 CREATE TABLE "board_moderator" (
     user_id BIGINT NOT NULL,
     board_id BIGINT NOT NULL,
+    role VARCHAR(16) NOT NULL DEFAULT 'moderator',
+    appointed_by BIGINT,
     create_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT board_moderator_pk PRIMARY KEY (user_id, board_id),
+    CONSTRAINT board_moderator_role_check CHECK (role IN ('owner', 'moderator')),
     CONSTRAINT board_moderator_user_fk FOREIGN KEY (user_id) REFERENCES "user" (user_id) ON DELETE CASCADE,
-    CONSTRAINT board_moderator_board_fk FOREIGN KEY (board_id) REFERENCES "board" (id) ON DELETE CASCADE
+    CONSTRAINT board_moderator_board_fk FOREIGN KEY (board_id) REFERENCES "board" (id) ON DELETE CASCADE,
+    CONSTRAINT board_moderator_appointed_by_fk FOREIGN KEY (appointed_by) REFERENCES "user" (user_id) ON DELETE SET NULL
 );
 CREATE INDEX idx_board_moderator_board_id ON "board_moderator" (board_id);
+CREATE INDEX idx_board_moderator_board_role ON "board_moderator" (board_id, role);
 CREATE INDEX idx_board_search_vector ON "board" USING GIN (search_vector);
 
 -- 用户收藏板块（订阅/星标）

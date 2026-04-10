@@ -121,10 +121,10 @@ func CreateBoardWithModerator(b *models.Board, moderatorUserID int64) error {
 	}
 
 	_, err = tx.Exec(`
-		INSERT INTO board_moderator (user_id, board_id, create_time)
-		VALUES ($1, $2, $3)
+		INSERT INTO board_moderator (user_id, board_id, role, appointed_by, create_time, update_time)
+		VALUES ($1, $2, $3, $1, $4, $4)
 		ON CONFLICT (user_id, board_id) DO NOTHING`,
-		moderatorUserID, id, b.CreateTime,
+		moderatorUserID, id, models.BoardModeratorRoleOwner, b.CreateTime,
 	)
 	if err != nil {
 		return err

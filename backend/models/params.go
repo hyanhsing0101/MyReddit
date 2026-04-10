@@ -50,9 +50,9 @@ type ParamUpdatePost struct {
 }
 
 type ParamPostList struct {
-	Page     int    `form:"page"`
-	PageSize int    `form:"page_size"`
-	BoardID  *int64 `form:"board_id"`
+	Page     int      `form:"page"`
+	PageSize int      `form:"page_size"`
+	BoardID  *int64   `form:"board_id"`
 	Sort     PostSort `form:"sort"`
 }
 
@@ -133,6 +133,15 @@ type ParamCreateBoard struct {
 type ParamFavoriteBoardList struct {
 	Page     int `form:"page"`
 	PageSize int `form:"page_size"`
+}
+
+type ParamAddBoardModerator struct {
+	UserID int64  `json:"user_id" binding:"required"`
+	Role   string `json:"role" binding:"required,oneof=owner moderator"`
+}
+
+type ParamUpdateBoardModeratorRole struct {
+	Role string `json:"role" binding:"required,oneof=owner moderator"`
 }
 
 func (p *ParamFavoriteBoardList) Normalize() {
@@ -235,9 +244,9 @@ func (p *ParamTagList) Normalize() {
 // =============================================================================
 
 type ParamUserHome struct {
-	PostPage       int `form:"post_page"`
-	PostPageSize   int `form:"post_page_size"`
-	CommentPage    int `form:"comment_page"`
+	PostPage        int `form:"post_page"`
+	PostPageSize    int `form:"post_page_size"`
+	CommentPage     int `form:"comment_page"`
 	CommentPageSize int `form:"comment_page_size"`
 }
 
