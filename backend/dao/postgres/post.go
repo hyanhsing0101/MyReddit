@@ -10,11 +10,20 @@ import (
 var ErrorPostNotExist = errors.New("post not exist")
 
 const postSelectCols = `p.id, p.board_id, p.title, p.content, p.author_id, p.deleted_at,
-		p.sealed_at, p.sealed_by_user_id, p.seal_kind, p.score, p.create_time, p.update_time,
+		p.sealed_at, p.sealed_by_user_id, p.seal_kind,
+		p.comments_locked_at, p.comments_locked_by_user_id,
+		p.pinned_at, p.pinned_by_user_id,
+		p.score, p.create_time, p.update_time,
 		b.slug AS board_slug, b.name AS board_name, b.visibility AS board_visibility`
 
 func postReadableWhere(uidIdx, adminIdx int) string {
 	return `p.deleted_at IS NULL AND ` + sqlPostBoardReadable(uidIdx, adminIdx) + ` AND ` + sqlPostSealReadable(uidIdx, adminIdx)
+}
+
+// sqlSubscribedBoardFilter 限定帖子所在板块在用户「收藏板块」列表中（$1 须与读者 user id 一致）。
+func sqlSubscribedBoardFilter() string {
+	return ` AND EXISTS (
+		SELECT 1 FROM board_favorite bf WHERE bf.board_id = p.board_id AND bf.user_id = $1)`
 }
 
 // CreatePost 写入帖子并返回新帖 id。
@@ -33,7 +42,8 @@ func CreatePost(post *models.Post) (int64, error) {
 }
 
 // CountPosts 统计读者可见的未软删帖子（私有板与封帖按 PostReader 过滤）。
-func CountPosts(boardID *int64, r *PostReader) (int64, error) {
+// subscribedOnly 为 true 时仅统计用户已收藏板块（board_favorite）下的帖子；须与登录读者 r.UserID 一致（由上层保证）。
+func CountPosts(boardID *int64, subscribedOnly bool, r *PostReader) (int64, error) {
 	var n int64
 	var err error
 	uid := postReaderUID(r)
@@ -42,16 +52,20 @@ func CountPosts(boardID *int64, r *PostReader) (int64, error) {
 		SELECT COUNT(*) FROM "post" p
 		INNER JOIN "board" b ON b.id = p.board_id
 		WHERE ` + postReadableWhere(1, 2)
+	sub := ""
+	if subscribedOnly {
+		sub = sqlSubscribedBoardFilter()
+	}
 	if boardID == nil {
-		err = db.Get(&n, base, uid, adm)
+		err = db.Get(&n, base+sub, uid, adm)
 	} else {
-		err = db.Get(&n, base+` AND p.board_id = $3`, uid, adm, *boardID)
+		err = db.Get(&n, base+sub+` AND p.board_id = $3`, uid, adm, *boardID)
 	}
 	return n, err
 }
 
 // ListPosts 按排序规则分页查询读者可见帖子。
-func ListPosts(boardID *int64, sort models.PostSort, limit, offset int, r *PostReader) ([]models.Post, error) {
+func ListPosts(boardID *int64, subscribedOnly bool, sort models.PostSort, limit, offset int, r *PostReader) ([]models.Post, error) {
 	var list []models.Post
 	var err error
 	orderBy := postOrderBy(sort)
@@ -62,12 +76,16 @@ func ListPosts(boardID *int64, sort models.PostSort, limit, offset int, r *PostR
 		FROM "post" p
 		INNER JOIN "board" b ON b.id = p.board_id
 		WHERE ` + postReadableWhere(1, 2)
+	sub := ""
+	if subscribedOnly {
+		sub = sqlSubscribedBoardFilter()
+	}
 
 	if boardID == nil {
-		sqlStr := base + ` ORDER BY ` + orderBy + ` LIMIT $3 OFFSET $4`
+		sqlStr := base + sub + ` ORDER BY ` + orderBy + ` LIMIT $3 OFFSET $4`
 		err = db.Select(&list, sqlStr, uid, adm, limit, offset)
 	} else {
-		sqlStr := base + ` AND p.board_id = $3 ORDER BY ` + orderBy + ` LIMIT $4 OFFSET $5`
+		sqlStr := base + sub + ` AND p.board_id = $3 ORDER BY ` + orderBy + ` LIMIT $4 OFFSET $5`
 		err = db.Select(&list, sqlStr, uid, adm, *boardID, limit, offset)
 	}
 	return list, err
@@ -96,13 +114,15 @@ func ListPostsByIDsOrdered(ids []int64, r *PostReader) ([]models.Post, error) {
 }
 
 func postOrderBy(sort models.PostSort) string {
+	// 板块治理：置顶帖优先展示，再按各排序规则。
+	pinned := "CASE WHEN p.pinned_at IS NULL THEN 1 ELSE 0 END ASC, p.pinned_at DESC, "
 	switch sort {
 	case models.PostSortTop:
-		return "p.score DESC, p.create_time DESC"
+		return pinned + "p.score DESC, p.create_time DESC"
 	case models.PostSortHot:
-		return "((GREATEST(p.score, -50))::double precision / POWER(GREATEST(EXTRACT(EPOCH FROM (NOW() - p.create_time)) / 3600.0, 0) + 2.0, 1.8)) DESC, p.create_time DESC"
+		return pinned + "((GREATEST(p.score, -50))::double precision / POWER(GREATEST(EXTRACT(EPOCH FROM (NOW() - p.create_time)) / 3600.0, 0) + 2.0, 1.8)) DESC, p.create_time DESC"
 	default:
-		return "p.create_time DESC"
+		return pinned + "p.create_time DESC"
 	}
 }
 
@@ -161,6 +181,64 @@ func SoftDeletePost(id int64, at time.Time) error {
 	return nil
 }
 
+// RestorePost 取消软删（仅当 deleted_at 非空时生效）。
+func RestorePost(id int64, at time.Time) error {
+	res, err := db.Exec(
+		`UPDATE "post" SET deleted_at = NULL, update_time = $2 WHERE id = $1 AND deleted_at IS NOT NULL`,
+		id, at,
+	)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrorPostNotExist
+	}
+	return nil
+}
+
+// CountBoardDeletedPosts 本板已软删帖子数（版主治理列表用）。
+func CountBoardDeletedPosts(boardID int64) (int64, error) {
+	var n int64
+	err := db.Get(&n, `SELECT COUNT(*) FROM "post" WHERE board_id = $1 AND deleted_at IS NOT NULL`, boardID)
+	return n, err
+}
+
+// ListBoardDeletedPosts 本板已软删帖子，按删除时间倒序。
+func ListBoardDeletedPosts(boardID int64, limit, offset int) ([]models.DeletedPostView, error) {
+	type row struct {
+		ID        int64         `db:"id"`
+		Title     string        `db:"title"`
+		AuthorID  sql.NullInt64 `db:"author_id"`
+		DeletedAt time.Time     `db:"deleted_at"`
+	}
+	var rows []row
+	err := db.Select(&rows, `
+		SELECT p.id, p.title, p.author_id, p.deleted_at
+		FROM "post" p
+		WHERE p.board_id = $1 AND p.deleted_at IS NOT NULL
+		ORDER BY p.deleted_at DESC
+		LIMIT $2 OFFSET $3`,
+		boardID, limit, offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]models.DeletedPostView, len(rows))
+	for i, r := range rows {
+		v := models.DeletedPostView{ID: r.ID, Title: r.Title, DeletedAt: r.DeletedAt}
+		if r.AuthorID.Valid {
+			x := r.AuthorID.Int64
+			v.AuthorID = &x
+		}
+		out[i] = v
+	}
+	return out, nil
+}
+
 // UpdatePostContent 更新帖子标题/正文与更新时间；帖子不存在时返回 ErrorPostNotExist。
 func UpdatePostContent(id int64, title, content string, at time.Time) error {
 	res, err := db.Exec(
@@ -205,6 +283,86 @@ func UnsealPost(postID int64, at time.Time) error {
 	res, err := db.Exec(`
 		UPDATE "post" SET sealed_at = NULL, sealed_by_user_id = NULL, seal_kind = NULL, update_time = $2
 		WHERE id = $1 AND sealed_at IS NOT NULL`,
+		postID, at,
+	)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrorPostNotExist
+	}
+	return nil
+}
+
+// LockPostComments 锁帖评论（禁止新评论）；已删或已锁返回 ErrorPostNotExist。
+func LockPostComments(postID, operatorID int64, at time.Time) error {
+	res, err := db.Exec(`
+		UPDATE "post" SET comments_locked_at = $2, comments_locked_by_user_id = $3, update_time = $2
+		WHERE id = $1 AND deleted_at IS NULL AND comments_locked_at IS NULL`,
+		postID, at, operatorID,
+	)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrorPostNotExist
+	}
+	return nil
+}
+
+// UnlockPostComments 解锁评论；未锁返回 ErrorPostNotExist。
+func UnlockPostComments(postID int64, at time.Time) error {
+	res, err := db.Exec(`
+		UPDATE "post" SET comments_locked_at = NULL, comments_locked_by_user_id = NULL, update_time = $2
+		WHERE id = $1 AND comments_locked_at IS NOT NULL`,
+		postID, at,
+	)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrorPostNotExist
+	}
+	return nil
+}
+
+// PinPost 置顶帖子；已删或已置顶返回 ErrorPostNotExist。
+func PinPost(postID, operatorID int64, at time.Time) error {
+	res, err := db.Exec(`
+		UPDATE "post" SET pinned_at = $2, pinned_by_user_id = $3, update_time = $2
+		WHERE id = $1 AND deleted_at IS NULL AND pinned_at IS NULL`,
+		postID, at, operatorID,
+	)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrorPostNotExist
+	}
+	return nil
+}
+
+// UnpinPost 取消置顶；未置顶返回 ErrorPostNotExist。
+func UnpinPost(postID int64, at time.Time) error {
+	res, err := db.Exec(`
+		UPDATE "post" SET pinned_at = NULL, pinned_by_user_id = NULL, update_time = $2
+		WHERE id = $1 AND pinned_at IS NOT NULL`,
 		postID, at,
 	)
 	if err != nil {

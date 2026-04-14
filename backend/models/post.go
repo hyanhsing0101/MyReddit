@@ -15,6 +15,10 @@ type Post struct {
 	SealedAt   sql.NullTime   `db:"sealed_at"`
 	SealedBy   sql.NullInt64  `db:"sealed_by_user_id"`
 	SealKind   sql.NullString `db:"seal_kind"`
+	LockedAt   sql.NullTime   `db:"comments_locked_at"`
+	LockedBy   sql.NullInt64  `db:"comments_locked_by_user_id"`
+	PinnedAt   sql.NullTime   `db:"pinned_at"`
+	PinnedBy   sql.NullInt64  `db:"pinned_by_user_id"`
 	Score      int64          `db:"score"`
 	CreateTime time.Time      `db:"create_time"`
 	UpdateTime time.Time      `db:"update_time"`
@@ -26,8 +30,12 @@ type Post struct {
 
 // PostModerationActionsView 详情接口在登录且有权治理时返回。
 type PostModerationActionsView struct {
-	CanSeal   bool `json:"can_seal"`
-	CanUnseal bool `json:"can_unseal"`
+	CanSeal           bool `json:"can_seal"`
+	CanUnseal         bool `json:"can_unseal"`
+	CanLockComments   bool `json:"can_lock_comments"`
+	CanUnlockComments bool `json:"can_unlock_comments"`
+	CanPin            bool `json:"can_pin"`
+	CanUnpin          bool `json:"can_unpin"`
 }
 
 // PostView 列表/详情接口返回用，author_id 可空时用 JSON null
@@ -42,26 +50,30 @@ type PostView struct {
 	Score     int64  `json:"score"`
 	MyVote    *int8  `json:"my_vote"`
 	// IsFavorited 仅当请求带合法登录态时设置 true/false；未登录时省略。
-	IsFavorited *bool     `json:"is_favorited,omitempty"`
-	Sealed      bool      `json:"sealed"`
-	SealKind    *string   `json:"seal_kind,omitempty"`
-	CreateTime  time.Time `json:"create_time"`
-	UpdateTime  time.Time `json:"update_time"`
-	Tags        []Tag     `json:"tags"`
+	IsFavorited    *bool     `json:"is_favorited,omitempty"`
+	Sealed         bool      `json:"sealed"`
+	SealKind       *string   `json:"seal_kind,omitempty"`
+	CommentsLocked bool      `json:"comments_locked"`
+	Pinned         bool      `json:"pinned"`
+	CreateTime     time.Time `json:"create_time"`
+	UpdateTime     time.Time `json:"update_time"`
+	Tags           []Tag     `json:"tags"`
 	// ModerationActions 仅帖子详情在有权时返回；列表通常省略。
 	ModerationActions *PostModerationActionsView `json:"moderation_actions,omitempty"`
 }
 
 func PostToView(p Post) PostView {
 	v := PostView{
-		ID:         p.ID,
-		BoardID:    p.BoardID,
-		Title:      p.Title,
-		Content:    p.Content,
-		Score:      p.Score,
-		Sealed:     p.SealedAt.Valid,
-		CreateTime: p.CreateTime,
-		UpdateTime: p.UpdateTime,
+		ID:             p.ID,
+		BoardID:        p.BoardID,
+		Title:          p.Title,
+		Content:        p.Content,
+		Score:          p.Score,
+		Sealed:         p.SealedAt.Valid,
+		CommentsLocked: p.LockedAt.Valid,
+		Pinned:         p.PinnedAt.Valid,
+		CreateTime:     p.CreateTime,
+		UpdateTime:     p.UpdateTime,
 	}
 	if p.SealKind.Valid && p.SealKind.String != "" {
 		sk := p.SealKind.String
@@ -85,6 +97,21 @@ type PostListData struct {
 	Total    int64      `json:"total"`
 	Page     int        `json:"page"`
 	PageSize int        `json:"page_size"`
+}
+
+// DeletedPostView 版主工作台：本板已软删帖子摘要。
+type DeletedPostView struct {
+	ID        int64     `json:"id"`
+	Title     string    `json:"title"`
+	AuthorID  *int64    `json:"author_id,omitempty"`
+	DeletedAt time.Time `json:"deleted_at"`
+}
+
+type DeletedPostListData struct {
+	List     []DeletedPostView `json:"list"`
+	Total    int64             `json:"total"`
+	Page     int               `json:"page"`
+	PageSize int               `json:"page_size"`
 }
 
 // PostFavoriteView 我收藏的帖子：帖子字段 + 收藏时间

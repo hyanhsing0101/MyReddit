@@ -24,4 +24,3 @@ func ListTags(p *models.ParamTagList) (*models.TagListData, error) {
 		PageSize: p.PageSize,
 	}, nil
 }
-

@@ -1,9 +1,9 @@
 package controller
 
 import (
-	"myreddit/logic"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"myreddit/logic"
 )
 
 func MePermissionsHandler(c *gin.Context) {

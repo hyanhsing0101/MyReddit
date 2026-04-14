@@ -22,16 +22,24 @@ func SetupRouter(mode string) *gin.Engine {
 	r.POST("/refresh", controller.RefreshTokenHandler)
 
 	// === Posts ===
-	// 主路由（REST 风格）
+	// 主路由（REST 风格）。列表 query：page、page_size、sort=new|hot|top、可选 board_id、可选 feed=all|subscribed（订阅流=已收藏板块，须登录且不可与 board_id 同用）。
 	r.GET("/posts", middleware.OptionalAuthMiddleware(), controller.ListPostHandler)
 	r.POST("/posts", middleware.JWTAuthMiddleware(), controller.CreatePostHandler)
 	r.GET("/posts/:id", middleware.OptionalAuthMiddleware(), controller.GetPostHandler)
 	r.PATCH("/posts/:id", middleware.JWTAuthMiddleware(), controller.UpdatePostHandler)
 	r.DELETE("/posts/:id", middleware.JWTAuthMiddleware(), controller.DeletePostHandler)
+	r.POST("/posts/:id/restore", middleware.JWTAuthMiddleware(), controller.RestorePostHandler)
 
 	r.POST("/posts/:id/vote", middleware.JWTAuthMiddleware(), controller.VotePostHandler)
+	r.POST("/posts/:id/reports", middleware.JWTAuthMiddleware(), controller.CreatePostReportHandler)
+	r.GET("/posts/:id/appeals/me", middleware.JWTAuthMiddleware(), controller.GetMyPostAppealHandler)
+	r.POST("/posts/:id/appeals/me", middleware.JWTAuthMiddleware(), controller.UpsertMyPostAppealHandler)
 	r.POST("/posts/:id/seal", middleware.JWTAuthMiddleware(), controller.SealPostHandler)
 	r.DELETE("/posts/:id/seal", middleware.JWTAuthMiddleware(), controller.UnsealPostHandler)
+	r.POST("/posts/:id/lock-comments", middleware.JWTAuthMiddleware(), controller.LockPostCommentsHandler)
+	r.DELETE("/posts/:id/lock-comments", middleware.JWTAuthMiddleware(), controller.UnlockPostCommentsHandler)
+	r.POST("/posts/:id/pin", middleware.JWTAuthMiddleware(), controller.PinPostHandler)
+	r.DELETE("/posts/:id/pin", middleware.JWTAuthMiddleware(), controller.UnpinPostHandler)
 
 	r.POST("/posts/:id/favorites", middleware.JWTAuthMiddleware(), controller.AddPostFavoriteHandler)
 	r.DELETE("/posts/:id/favorites", middleware.JWTAuthMiddleware(), controller.RemovePostFavoriteHandler)
@@ -39,6 +47,7 @@ func SetupRouter(mode string) *gin.Engine {
 	r.GET("/posts/:id/comments", middleware.OptionalAuthMiddleware(), controller.ListCommentsHandler)
 	r.POST("/posts/:id/comments", middleware.JWTAuthMiddleware(), controller.CreateCommentHandler)
 	r.POST("/posts/:id/comments/:cid/vote", middleware.JWTAuthMiddleware(), controller.VoteCommentHandler)
+	r.POST("/posts/:id/comments/:cid/reports", middleware.JWTAuthMiddleware(), controller.CreateCommentReportHandler)
 
 	// 兼容旧路由（可逐步下线）
 	r.POST("/post", middleware.JWTAuthMiddleware(), controller.CreatePostHandler)
@@ -60,6 +69,17 @@ func SetupRouter(mode string) *gin.Engine {
 	r.POST("/boards/:id/moderators", middleware.JWTAuthMiddleware(), controller.AddBoardModeratorHandler)
 	r.PATCH("/boards/:id/moderators/:uid", middleware.JWTAuthMiddleware(), controller.UpdateBoardModeratorRoleHandler)
 	r.DELETE("/boards/:id/moderators/:uid", middleware.JWTAuthMiddleware(), controller.RemoveBoardModeratorHandler)
+	r.GET("/boards/:id/reports", middleware.JWTAuthMiddleware(), controller.ListBoardPostReportsHandler)
+	r.PATCH("/boards/:id/reports", middleware.JWTAuthMiddleware(), controller.BatchUpdatePostReportStatusHandler)
+	r.PATCH("/boards/:id/reports/:rid", middleware.JWTAuthMiddleware(), controller.UpdatePostReportStatusHandler)
+	r.GET("/boards/:id/deleted-posts", middleware.JWTAuthMiddleware(), controller.ListBoardDeletedPostsHandler)
+	r.GET("/boards/:id/comment-reports", middleware.JWTAuthMiddleware(), controller.ListBoardCommentReportsHandler)
+	r.PATCH("/boards/:id/comment-reports", middleware.JWTAuthMiddleware(), controller.BatchUpdateCommentReportStatusHandler)
+	r.PATCH("/boards/:id/comment-reports/:rid", middleware.JWTAuthMiddleware(), controller.UpdateCommentReportStatusHandler)
+	r.GET("/boards/:id/appeals", middleware.JWTAuthMiddleware(), controller.ListBoardPostAppealsHandler)
+	r.PATCH("/boards/:id/appeals/:aid", middleware.JWTAuthMiddleware(), controller.HandlePostAppealHandler)
+	r.GET("/boards/:id/mod-dashboard", middleware.JWTAuthMiddleware(), controller.GetModerationDashboardHandler)
+	r.GET("/boards/:id/mod-logs", middleware.JWTAuthMiddleware(), controller.ListBoardModerationLogsHandler)
 
 	// 兼容旧路由（可逐步下线）
 	r.GET("/boards/slug/:slug", middleware.OptionalAuthMiddleware(), controller.GetBoardBySlugHandler)

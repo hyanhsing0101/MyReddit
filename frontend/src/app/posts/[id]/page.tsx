@@ -7,24 +7,40 @@ import { CommentVoteControls } from "@/components/comment-vote-controls";
 import { PostFavoriteButton } from "@/components/post-favorite-button";
 import { PostVoteControls } from "@/components/post-vote-controls";
 import {
+  API_CANNOT_REPORT_OWN_COMMENT_CODE,
+  API_CANNOT_REPORT_OWN_POST_CODE,
   API_COMMENT_NOT_EXIST_CODE,
+  API_CANNOT_APPEAL_UNSEALED_POST_CODE,
+  API_DUPLICATE_COMMENT_REPORT_CODE,
+  API_DUPLICATE_POST_REPORT_CODE,
   API_FORBIDDEN_CODE,
   API_INVALID_COMMENT_PARENT_CODE,
   API_PARENT_COMMENT_MISMATCH_CODE,
+  API_POST_COMMENTS_LOCKED_CODE,
+  API_POST_APPEAL_NOT_EXIST_CODE,
   API_POST_NOT_EXIST_CODE,
   API_POST_SEALED_CODE,
   API_SUCCESS_CODE,
   apiCreateComment,
+  apiCreateCommentReport,
+  apiCreatePostReport,
   apiDeletePost,
   apiErrorMessage,
+  apiGetMyPostAppeal,
   apiGetPost,
+  apiLockPostComments,
   apiListComments,
   apiMePermissions,
+  apiPinPost,
   apiSealPost,
+  apiUnlockPostComments,
+  apiUnpinPost,
   apiUnsealPost,
+  apiUpsertMyPostAppeal,
   tagDisplayLabel,
   type CommentItem,
   type MePermissionsPayload,
+  type PostAppealItem,
   type PostItem,
 } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth-storage";
@@ -39,14 +55,16 @@ function canEditPost(
   return post.author_id === me.user_id;
 }
 
-/** 软删：仅作者；无主帖仅站主（与后端一致）。 */
+/** 软删：作者、站主、板块版主可删（与后端一致）。 */
 function canDeletePost(
   post: PostItem,
   me: MePermissionsPayload | null,
 ): boolean {
   if (!me) return false;
+  if (me.is_site_admin) return true;
+  if (me.moderated_board_ids?.includes(post.board_id)) return true;
   if (post.author_id != null) return post.author_id === me.user_id;
-  return me.is_site_admin;
+  return false;
 }
 
 type CommentNode = CommentItem & { children: CommentNode[] };
@@ -73,12 +91,29 @@ function buildCommentTree(flat: CommentItem[]): CommentNode[] {
   return roots;
 }
 
+function FlagReportIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className="h-4 w-4"
+      aria-hidden
+    >
+      <path d="M5 21V3h9l.4 2H19v9h-6l-.4-2H7v9H5zm2-11h6.2l.4 2H17V8h-6.2l-.4-2H7v4z" />
+    </svg>
+  );
+}
+
 function CommentBranch({
   postId,
   node,
   depth,
   onReply,
   onCommentVotePatch,
+  me,
+  meLoaded,
+  onOpenCommentReport,
 }: {
   postId: number;
   node: CommentNode;
@@ -88,10 +123,17 @@ function CommentBranch({
     commentId: number,
     patch: { score: number; my_vote: number | null },
   ) => void;
+  me: MePermissionsPayload | null;
+  meLoaded: boolean;
+  onOpenCommentReport: (commentId: number) => void;
 }) {
   const label =
     node.author_username ||
     (node.author_id != null ? `用户 ${node.author_id}` : "匿名");
+  const showCommentReportBtn =
+    meLoaded &&
+    !!me &&
+    (node.author_id == null || node.author_id !== me.user_id);
   return (
     <div
       className={
@@ -110,7 +152,7 @@ function CommentBranch({
           onUpdated={(patch) => onCommentVotePatch(node.id, patch)}
         />
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-2 text-sm">
+          <div className="flex w-full min-w-0 flex-wrap items-baseline gap-2 text-sm">
             {node.author_id != null ? (
               <Link
                 href={`/users/${node.author_id}`}
@@ -131,6 +173,17 @@ function CommentBranch({
                 minute: "2-digit",
               })}
             </span>
+            {showCommentReportBtn ? (
+              <button
+                type="button"
+                title="举报该评论"
+                aria-label="举报该评论"
+                onClick={() => onOpenCommentReport(node.id)}
+                className="ms-auto inline-flex shrink-0 items-center justify-center rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-rose-600 dark:hover:bg-zinc-800 dark:hover:text-rose-400"
+              >
+                <FlagReportIcon />
+              </button>
+            ) : null}
           </div>
           <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">
             {node.content}
@@ -152,6 +205,9 @@ function CommentBranch({
           depth={depth + 1}
           onReply={onReply}
           onCommentVotePatch={onCommentVotePatch}
+          me={me}
+          meLoaded={meLoaded}
+          onOpenCommentReport={onOpenCommentReport}
         />
       ))}
     </div>
@@ -180,6 +236,28 @@ export default function PostDetailPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [sealBusy, setSealBusy] = useState(false);
   const [sealError, setSealError] = useState<string | null>(null);
+  const [modBusy, setModBusy] = useState(false);
+  const [postReportOpen, setPostReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetail, setReportDetail] = useState("");
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportOk, setReportOk] = useState<string | null>(null);
+
+  const [commentReportId, setCommentReportId] = useState<number | null>(null);
+  const [cReportReason, setCReportReason] = useState("");
+  const [cReportDetail, setCReportDetail] = useState("");
+  const [cReportBusy, setCReportBusy] = useState(false);
+  const [cReportError, setCReportError] = useState<string | null>(null);
+  const [cReportOk, setCReportOk] = useState<string | null>(null);
+  const [appeal, setAppeal] = useState<PostAppealItem | null>(null);
+  const [appealReason, setAppealReason] = useState("");
+  const [appealTitle, setAppealTitle] = useState("");
+  const [appealContent, setAppealContent] = useState("");
+  const [appealReply, setAppealReply] = useState("");
+  const [appealBusy, setAppealBusy] = useState(false);
+  const [appealError, setAppealError] = useState<string | null>(null);
+  const [appealOk, setAppealOk] = useState<string | null>(null);
 
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [commentsTotal, setCommentsTotal] = useState(0);
@@ -319,7 +397,60 @@ export default function PostDetailPage() {
     return canDeletePost(post, me);
   }, [post, me, meLoaded]);
 
+  const showReport = useMemo(() => {
+    if (!post || !meLoaded || !me) return false;
+    if (post.author_id == null) return true;
+    return post.author_id !== me.user_id;
+  }, [post, me, meLoaded]);
+
+  const showAppeal = useMemo(() => {
+    if (!post || !meLoaded || !me) return false;
+    if (!post.sealed) return false;
+    return post.author_id != null && post.author_id === me.user_id;
+  }, [post, me, meLoaded]);
+
+  useEffect(() => {
+    if (!post || !showAppeal) {
+      setAppeal(null);
+      setAppealError(null);
+      return;
+    }
+    const token = getAccessToken();
+    if (!token) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const body = await apiGetMyPostAppeal(token, post.id);
+        if (cancelled) return;
+        if (body.code === API_POST_APPEAL_NOT_EXIST_CODE) {
+          setAppeal(null);
+          setAppealReason("");
+          setAppealTitle(post.title);
+          setAppealContent(post.content);
+          setAppealReply("");
+          return;
+        }
+        if (body.code !== API_SUCCESS_CODE || !body.data) {
+          setAppeal(null);
+          return;
+        }
+        setAppeal(body.data);
+        setAppealReason(body.data.reason ?? "");
+        setAppealTitle(body.data.requested_title ?? post.title);
+        setAppealContent(body.data.requested_content ?? post.content);
+        setAppealReply(body.data.user_reply ?? "");
+      } catch {
+        if (!cancelled) setAppeal(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [post, showAppeal]);
+
   const isSealed = !!post?.sealed;
+  const commentsLocked = !!post?.comments_locked;
+  const isPinned = !!post?.pinned;
   const modActions = post?.moderation_actions;
 
   async function handleSeal() {
@@ -370,6 +501,92 @@ export default function PostDetailPage() {
       setSealError(e instanceof Error ? e.message : "操作失败");
     } finally {
       setSealBusy(false);
+    }
+  }
+
+  async function handleLockComments() {
+    if (!post) return;
+    const token = getAccessToken();
+    if (!token) return;
+    if (!window.confirm("确定锁定评论？锁定后普通用户不可新增评论。")) return;
+    setSealError(null);
+    setModBusy(true);
+    try {
+      const body = await apiLockPostComments(token, post.id);
+      if (body.code === API_SUCCESS_CODE) {
+        const reload = await apiGetPost(post.id, token);
+        if (reload.code === API_SUCCESS_CODE && reload.data) setPost(reload.data);
+        return;
+      }
+      setSealError(apiErrorMessage(body));
+    } catch (e) {
+      setSealError(e instanceof Error ? e.message : "操作失败");
+    } finally {
+      setModBusy(false);
+    }
+  }
+
+  async function handleUnlockComments() {
+    if (!post) return;
+    const token = getAccessToken();
+    if (!token) return;
+    if (!window.confirm("确定解除评论锁定？")) return;
+    setSealError(null);
+    setModBusy(true);
+    try {
+      const body = await apiUnlockPostComments(token, post.id);
+      if (body.code === API_SUCCESS_CODE) {
+        const reload = await apiGetPost(post.id, token);
+        if (reload.code === API_SUCCESS_CODE && reload.data) setPost(reload.data);
+        return;
+      }
+      setSealError(apiErrorMessage(body));
+    } catch (e) {
+      setSealError(e instanceof Error ? e.message : "操作失败");
+    } finally {
+      setModBusy(false);
+    }
+  }
+
+  async function handlePin() {
+    if (!post) return;
+    const token = getAccessToken();
+    if (!token) return;
+    setSealError(null);
+    setModBusy(true);
+    try {
+      const body = await apiPinPost(token, post.id);
+      if (body.code === API_SUCCESS_CODE) {
+        const reload = await apiGetPost(post.id, token);
+        if (reload.code === API_SUCCESS_CODE && reload.data) setPost(reload.data);
+        return;
+      }
+      setSealError(apiErrorMessage(body));
+    } catch (e) {
+      setSealError(e instanceof Error ? e.message : "操作失败");
+    } finally {
+      setModBusy(false);
+    }
+  }
+
+  async function handleUnpin() {
+    if (!post) return;
+    const token = getAccessToken();
+    if (!token) return;
+    setSealError(null);
+    setModBusy(true);
+    try {
+      const body = await apiUnpinPost(token, post.id);
+      if (body.code === API_SUCCESS_CODE) {
+        const reload = await apiGetPost(post.id, token);
+        if (reload.code === API_SUCCESS_CODE && reload.data) setPost(reload.data);
+        return;
+      }
+      setSealError(apiErrorMessage(body));
+    } catch (e) {
+      setSealError(e instanceof Error ? e.message : "操作失败");
+    } finally {
+      setModBusy(false);
     }
   }
 
@@ -431,6 +648,10 @@ export default function PostDetailPage() {
           setCommentSubmitError("该帖已封禁，暂不可评论");
           return;
         }
+        if (body.code === API_POST_COMMENTS_LOCKED_CODE) {
+          setCommentSubmitError("该帖已锁定评论，暂不可评论");
+          return;
+        }
         if (body.code === API_COMMENT_NOT_EXIST_CODE) {
           setCommentSubmitError("父评论不存在，可能已被删除");
           return;
@@ -455,6 +676,162 @@ export default function PostDetailPage() {
       );
     } finally {
       setCommentSubmitting(false);
+    }
+  }
+
+  async function handleReportPost(e: React.FormEvent) {
+    e.preventDefault();
+    if (!post) return;
+    const token = getAccessToken();
+    if (!token) {
+      setReportError("请先登录后举报");
+      return;
+    }
+    const reason = reportReason.trim();
+    const detail = reportDetail.trim();
+    if (!reason) {
+      setReportError("请填写举报原因");
+      return;
+    }
+    setReportBusy(true);
+    setReportError(null);
+    setReportOk(null);
+    try {
+      const body = await apiCreatePostReport(token, post.id, { reason, detail });
+      if (body.code !== API_SUCCESS_CODE) {
+        if (body.code === API_CANNOT_REPORT_OWN_POST_CODE) {
+          setReportError("不能举报自己的帖子");
+          return;
+        }
+        if (body.code === API_DUPLICATE_POST_REPORT_CODE) {
+          setReportError("你已有一条待处理举报，请等待版主处理");
+          return;
+        }
+        if (body.code === API_POST_NOT_EXIST_CODE) {
+          setNotFound(true);
+          setPost(null);
+          return;
+        }
+        setReportError(apiErrorMessage(body));
+        return;
+      }
+      setReportReason("");
+      setReportDetail("");
+      setReportOk("举报已提交，感谢反馈。");
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : "举报失败");
+    } finally {
+      setReportBusy(false);
+    }
+  }
+
+  async function handleCommentReportSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!post || commentReportId == null) return;
+    const token = getAccessToken();
+    if (!token) {
+      setCReportError("请先登录后举报");
+      return;
+    }
+    const reason = cReportReason.trim();
+    const detail = cReportDetail.trim();
+    if (!reason) {
+      setCReportError("请填写举报原因");
+      return;
+    }
+    setCReportBusy(true);
+    setCReportError(null);
+    setCReportOk(null);
+    try {
+      const body = await apiCreateCommentReport(
+        token,
+        post.id,
+        commentReportId,
+        { reason, detail },
+      );
+      if (body.code !== API_SUCCESS_CODE) {
+        if (body.code === API_CANNOT_REPORT_OWN_COMMENT_CODE) {
+          setCReportError("不能举报自己的评论");
+          return;
+        }
+        if (body.code === API_DUPLICATE_COMMENT_REPORT_CODE) {
+          setCReportError("你已有一条待处理举报，请等待版主处理");
+          return;
+        }
+        if (body.code === API_COMMENT_NOT_EXIST_CODE) {
+          setCReportError("评论不存在或已删除");
+          return;
+        }
+        if (body.code === API_POST_NOT_EXIST_CODE) {
+          setNotFound(true);
+          setPost(null);
+          return;
+        }
+        setCReportError(apiErrorMessage(body));
+        return;
+      }
+      setCReportReason("");
+      setCReportDetail("");
+      setCReportOk("举报已提交，感谢反馈。");
+    } catch (err) {
+      setCReportError(err instanceof Error ? err.message : "举报失败");
+    } finally {
+      setCReportBusy(false);
+    }
+  }
+
+  async function handleAppealSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!post) return;
+    const token = getAccessToken();
+    if (!token) {
+      setAppealError("请先登录后再提交申诉");
+      return;
+    }
+    const reason = appealReason.trim();
+    const title = appealTitle.trim();
+    const content = appealContent.trim();
+    const userReply = appealReply.trim();
+    if (!reason || !title || !content) {
+      setAppealError("请填写申诉说明与修改后的标题/正文");
+      return;
+    }
+    setAppealBusy(true);
+    setAppealError(null);
+    setAppealOk(null);
+    try {
+      const body = await apiUpsertMyPostAppeal(token, post.id, {
+        reason,
+        requested_title: title,
+        requested_content: content,
+        user_reply: userReply,
+      });
+      if (body.code !== API_SUCCESS_CODE) {
+        if (body.code === API_CANNOT_APPEAL_UNSEALED_POST_CODE) {
+          setAppealError("帖子未被封禁，无需申诉");
+          return;
+        }
+        if (body.code === API_FORBIDDEN_CODE) {
+          setAppealError("你不是该帖作者，无法申诉");
+          return;
+        }
+        if (body.code === API_POST_NOT_EXIST_CODE) {
+          setNotFound(true);
+          setPost(null);
+          return;
+        }
+        setAppealError(apiErrorMessage(body));
+        return;
+      }
+      setAppealOk("申诉已提交/已更新，请等待版主处理。");
+      const reload = await apiGetMyPostAppeal(token, post.id);
+      if (reload.code === API_SUCCESS_CODE && reload.data) {
+        setAppeal(reload.data);
+      }
+    } catch (err) {
+      setAppealError(err instanceof Error ? err.message : "申诉失败");
+    } finally {
+      setAppealBusy(false);
     }
   }
 
@@ -515,6 +892,21 @@ export default function PostDetailPage() {
                     );
                   }}
                 />
+                {showReport ? (
+                  <button
+                    type="button"
+                    title="举报该帖"
+                    aria-label="举报该帖"
+                    onClick={() => {
+                      setPostReportOpen(true);
+                      setReportError(null);
+                      setReportOk(null);
+                    }}
+                    className="inline-flex shrink-0 items-center justify-center rounded-lg border border-zinc-300 p-2 text-zinc-500 hover:border-rose-300 hover:text-rose-600 dark:border-zinc-600 dark:hover:border-rose-800 dark:hover:text-rose-400"
+                  >
+                    <FlagReportIcon />
+                  </button>
+                ) : null}
                 {showEdit ? (
                   <Link
                     href={`/posts/${post.id}/edit`}
@@ -541,6 +933,46 @@ export default function PostDetailPage() {
                     className="shrink-0 rounded-lg border border-emerald-500 px-3 py-1.5 text-sm text-emerald-800 disabled:opacity-50 dark:border-emerald-700 dark:text-emerald-200"
                   >
                     解封
+                  </button>
+                ) : null}
+                {modActions?.can_lock_comments ? (
+                  <button
+                    type="button"
+                    disabled={modBusy}
+                    onClick={() => void handleLockComments()}
+                    className="shrink-0 rounded-lg border border-amber-500 px-3 py-1.5 text-sm text-amber-900 disabled:opacity-50 dark:border-amber-700 dark:text-amber-200"
+                  >
+                    锁评
+                  </button>
+                ) : null}
+                {modActions?.can_unlock_comments ? (
+                  <button
+                    type="button"
+                    disabled={modBusy}
+                    onClick={() => void handleUnlockComments()}
+                    className="shrink-0 rounded-lg border border-emerald-500 px-3 py-1.5 text-sm text-emerald-800 disabled:opacity-50 dark:border-emerald-700 dark:text-emerald-200"
+                  >
+                    解锁评论
+                  </button>
+                ) : null}
+                {modActions?.can_pin ? (
+                  <button
+                    type="button"
+                    disabled={modBusy}
+                    onClick={() => void handlePin()}
+                    className="shrink-0 rounded-lg border border-indigo-500 px-3 py-1.5 text-sm text-indigo-800 disabled:opacity-50 dark:border-indigo-700 dark:text-indigo-200"
+                  >
+                    置顶
+                  </button>
+                ) : null}
+                {modActions?.can_unpin ? (
+                  <button
+                    type="button"
+                    disabled={modBusy}
+                    onClick={() => void handleUnpin()}
+                    className="shrink-0 rounded-lg border border-slate-500 px-3 py-1.5 text-sm text-slate-800 disabled:opacity-50 dark:border-slate-600 dark:text-slate-200"
+                  >
+                    取消置顶
                   </button>
                 ) : null}
               </div>
@@ -607,6 +1039,130 @@ export default function PostDetailPage() {
                 ，部分用户不可见正文；解封后恢复正常展示。
               </div>
             ) : null}
+            {commentsLocked ? (
+              <div className="mt-3 rounded-lg border border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
+                本帖评论已锁定，暂不可新增评论。
+              </div>
+            ) : null}
+            {isPinned ? (
+              <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm text-indigo-900 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-100">
+                该帖已置顶。
+              </div>
+            ) : null}
+            {showAppeal ? (
+              <section className="mt-6 rounded-xl border border-blue-200 bg-blue-50/60 p-4 dark:border-blue-900 dark:bg-blue-950/30">
+                <h2 className="text-sm font-medium text-blue-950 dark:text-blue-100">
+                  封帖申诉（作者）
+                </h2>
+                {appeal ? (
+                  <p className="mt-2 text-xs text-blue-900/80 dark:text-blue-200/80">
+                    当前状态：
+                    {appeal.status === "open"
+                      ? "待处理"
+                      : appeal.status === "in_review"
+                        ? "处理中"
+                        : appeal.status === "approved"
+                          ? "已通过"
+                          : "已驳回"}
+                    （申诉 #{appeal.id}）
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs text-blue-900/80 dark:text-blue-200/80">
+                    你还没有提交申诉；请填写修改后的标题与正文，并说明申诉理由。
+                  </p>
+                )}
+                {appeal &&
+                (appeal.status === "approved" || appeal.status === "rejected") ? (
+                  <div className="mt-3 space-y-2 text-sm text-blue-950 dark:text-blue-100">
+                    {appeal.moderator_reply ? (
+                      <p className="whitespace-pre-wrap">
+                        <span className="font-medium">版主回复：</span>
+                        {appeal.moderator_reply}
+                      </p>
+                    ) : null}
+                    <p className="text-xs text-blue-900/70 dark:text-blue-200/70">
+                      更新时间：
+                      {new Date(appeal.update_time).toLocaleString("zh-CN")}
+                    </p>
+                  </div>
+                ) : null}
+                <form onSubmit={handleAppealSubmit} className="mt-3 space-y-3">
+                  <textarea
+                    value={appealReason}
+                    onChange={(e) => setAppealReason(e.target.value)}
+                    maxLength={500}
+                    rows={3}
+                    placeholder="申诉说明（必填）：说明为何应解封、做了哪些整改"
+                    disabled={
+                      appealBusy ||
+                      (!!appeal &&
+                        (appeal.status === "approved" || appeal.status === "rejected"))
+                    }
+                    className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm dark:border-blue-900 dark:bg-zinc-900"
+                  />
+                  <input
+                    value={appealTitle}
+                    onChange={(e) => setAppealTitle(e.target.value)}
+                    maxLength={300}
+                    placeholder="修改后的标题（必填）"
+                    disabled={
+                      appealBusy ||
+                      (!!appeal &&
+                        (appeal.status === "approved" || appeal.status === "rejected"))
+                    }
+                    className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm dark:border-blue-900 dark:bg-zinc-900"
+                  />
+                  <textarea
+                    value={appealContent}
+                    onChange={(e) => setAppealContent(e.target.value)}
+                    maxLength={20000}
+                    rows={6}
+                    placeholder="修改后的正文（必填）"
+                    disabled={
+                      appealBusy ||
+                      (!!appeal &&
+                        (appeal.status === "approved" || appeal.status === "rejected"))
+                    }
+                    className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm dark:border-blue-900 dark:bg-zinc-900"
+                  />
+                  <textarea
+                    value={appealReply}
+                    onChange={(e) => setAppealReply(e.target.value)}
+                    maxLength={2000}
+                    rows={2}
+                    placeholder="给版主的补充回复（可选，用于追问/补充材料）"
+                    disabled={
+                      appealBusy ||
+                      (!!appeal &&
+                        (appeal.status === "approved" || appeal.status === "rejected"))
+                    }
+                    className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm dark:border-blue-900 dark:bg-zinc-900"
+                  />
+                  {appealError ? (
+                    <p className="text-sm text-red-600 dark:text-red-400">{appealError}</p>
+                  ) : null}
+                  {appealOk ? (
+                    <p className="text-sm text-emerald-700 dark:text-emerald-400">{appealOk}</p>
+                  ) : null}
+                  <button
+                    type="submit"
+                    disabled={
+                      appealBusy ||
+                      (!!appeal &&
+                        (appeal.status === "approved" || appeal.status === "rejected"))
+                    }
+                    className="rounded-lg border border-blue-400 bg-blue-600 px-4 py-2 text-sm text-white disabled:opacity-50 dark:border-blue-800 dark:bg-blue-700"
+                  >
+                    {appealBusy
+                      ? "提交中…"
+                      : appeal &&
+                          (appeal.status === "open" || appeal.status === "in_review")
+                        ? "更新申诉"
+                        : "提交申诉"}
+                  </button>
+                </form>
+              </section>
+            ) : null}
             <div className="mt-8 whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-800 dark:text-zinc-200">
               {post.content}
             </div>
@@ -656,6 +1212,15 @@ export default function PostDetailPage() {
                         setReplyTo({ id: cid, name })
                       }
                       onCommentVotePatch={patchCommentVote}
+                      me={me}
+                      meLoaded={meLoaded}
+                      onOpenCommentReport={(cid) => {
+                        setCommentReportId(cid);
+                        setCReportReason("");
+                        setCReportDetail("");
+                        setCReportError(null);
+                        setCReportOk(null);
+                      }}
                     />
                   ))}
                 </div>
@@ -682,13 +1247,15 @@ export default function PostDetailPage() {
                   placeholder={
                     isSealed
                       ? "该帖已封禁，不可评论"
+                      : commentsLocked
+                        ? "该帖已锁评，不可评论"
                       : getAccessToken()
                         ? "写评论…"
                         : "登录后可发表评论"
                   }
                   value={commentBody}
                   onChange={(e) => setCommentBody(e.target.value)}
-                  disabled={!getAccessToken() || isSealed}
+                  disabled={!getAccessToken() || isSealed || commentsLocked}
                   rows={4}
                 />
                 {commentSubmitError ? (
@@ -703,7 +1270,8 @@ export default function PostDetailPage() {
                       commentSubmitting ||
                       !getAccessToken() ||
                       !commentBody.trim() ||
-                      isSealed
+                      isSealed ||
+                      commentsLocked
                     }
                     className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
                   >
@@ -721,6 +1289,128 @@ export default function PostDetailPage() {
               </form>
             </div>
           </section>
+
+          {postReportOpen && showReport ? (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="post-report-title"
+            >
+              <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-zinc-200 bg-white p-4 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+                <div className="flex items-start justify-between gap-2">
+                  <h2
+                    id="post-report-title"
+                    className="text-sm font-medium text-zinc-800 dark:text-zinc-200"
+                  >
+                    举报帖子
+                  </h2>
+                  <button
+                    type="button"
+                    className="rounded px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    onClick={() => {
+                      setPostReportOpen(false);
+                      setReportError(null);
+                      setReportOk(null);
+                    }}
+                  >
+                    关闭
+                  </button>
+                </div>
+                <form onSubmit={handleReportPost} className="mt-3 space-y-3">
+                  <input
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    maxLength={120}
+                    placeholder="举报原因（必填，例如：广告、辱骂、人身攻击）"
+                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+                  />
+                  <textarea
+                    value={reportDetail}
+                    onChange={(e) => setReportDetail(e.target.value)}
+                    maxLength={1000}
+                    rows={3}
+                    placeholder="补充说明（可选）"
+                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+                  />
+                  {reportError ? (
+                    <p className="text-sm text-red-600 dark:text-red-400">{reportError}</p>
+                  ) : null}
+                  {reportOk ? (
+                    <p className="text-sm text-emerald-700 dark:text-emerald-400">{reportOk}</p>
+                  ) : null}
+                  <button
+                    type="submit"
+                    disabled={reportBusy || !reportReason.trim()}
+                    className="rounded-lg border border-rose-300 px-4 py-2 text-sm text-rose-700 disabled:opacity-50 dark:border-rose-800 dark:text-rose-300"
+                  >
+                    {reportBusy ? "提交中…" : "提交举报"}
+                  </button>
+                </form>
+              </div>
+            </div>
+          ) : null}
+
+          {commentReportId != null && post ? (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="comment-report-title"
+            >
+              <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-zinc-200 bg-white p-4 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+                <div className="flex items-start justify-between gap-2">
+                  <h2
+                    id="comment-report-title"
+                    className="text-sm font-medium text-zinc-800 dark:text-zinc-200"
+                  >
+                    举报评论 #{commentReportId}
+                  </h2>
+                  <button
+                    type="button"
+                    className="rounded px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    onClick={() => {
+                      setCommentReportId(null);
+                      setCReportError(null);
+                      setCReportOk(null);
+                    }}
+                  >
+                    关闭
+                  </button>
+                </div>
+                <form onSubmit={handleCommentReportSubmit} className="mt-3 space-y-3">
+                  <input
+                    value={cReportReason}
+                    onChange={(e) => setCReportReason(e.target.value)}
+                    maxLength={120}
+                    placeholder="举报原因（必填）"
+                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+                  />
+                  <textarea
+                    value={cReportDetail}
+                    onChange={(e) => setCReportDetail(e.target.value)}
+                    maxLength={1000}
+                    rows={3}
+                    placeholder="补充说明（可选）"
+                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+                  />
+                  {cReportError ? (
+                    <p className="text-sm text-red-600 dark:text-red-400">{cReportError}</p>
+                  ) : null}
+                  {cReportOk ? (
+                    <p className="text-sm text-emerald-700 dark:text-emerald-400">{cReportOk}</p>
+                  ) : null}
+                  <button
+                    type="submit"
+                    disabled={cReportBusy || !cReportReason.trim()}
+                    className="rounded-lg border border-rose-300 px-4 py-2 text-sm text-rose-700 disabled:opacity-50 dark:border-rose-800 dark:text-rose-300"
+                  >
+                    {cReportBusy ? "提交中…" : "提交举报"}
+                  </button>
+                </form>
+              </div>
+            </div>
+          ) : null}
         </>
       ) : null}
     </div>

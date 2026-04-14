@@ -60,7 +60,7 @@ func CreatePostHandler(c *gin.Context) {
 	ResponseCreated(c, nil)
 }
 
-// ListPostHandler 分页获取帖子列表（支持 board_id 与 sort）。
+// ListPostHandler 分页获取帖子列表（支持 board_id、sort、feed=all|subscribed）。
 func ListPostHandler(c *gin.Context) {
 	p := new(models.ParamPostList)
 	if err := c.ShouldBindQuery(p); err != nil {
@@ -76,6 +76,14 @@ func ListPostHandler(c *gin.Context) {
 		}
 		if errors.Is(err, logic.ErrInvalidBoardID) {
 			ResponseError(c, CodeInvalidBoardID)
+			return
+		}
+		if errors.Is(err, logic.ErrSubscribedFeedNeedLogin) {
+			ResponseError(c, CodeNeedLogin)
+			return
+		}
+		if errors.Is(err, logic.ErrSubscribedFeedWithBoardID) {
+			ResponseError(c, CodeInvalidParam)
 			return
 		}
 		zap.L().Error("List Post Failed", zap.Error(err))
@@ -107,7 +115,7 @@ func GetPostHandler(c *gin.Context) {
 	ResponseSuccess(c, data)
 }
 
-// DeletePostHandler 软删帖子（作者本人或站点管理员）。
+// DeletePostHandler 软删帖子（作者本人、站点管理员或板块版主）。
 func DeletePostHandler(c *gin.Context) {
 	userID, err := GetCurrentUser(c)
 	if err != nil {

@@ -10,11 +10,11 @@ type User struct {
 }
 
 type MePermissionsView struct {
-	UserID            int64   `json:"user_id"`
-	Username          string  `json:"username"`
+	UserID            int64    `json:"user_id"`
+	Username          string   `json:"username"`
 	Roles             []string `json:"roles"`
-	IsSiteAdmin       bool    `json:"is_site_admin"`
-	ModeratedBoardIDs []int64 `json:"moderated_board_ids"`
+	IsSiteAdmin       bool     `json:"is_site_admin"`
+	ModeratedBoardIDs []int64  `json:"moderated_board_ids"`
 }
 
 type UserHomePostItem struct {
@@ -39,14 +39,14 @@ type UserHomeCommentItem struct {
 }
 
 type UserHomeData struct {
-	UserID           int64                 `json:"user_id"`
-	Username         string                `json:"username"`
-	Posts            []UserHomePostItem    `json:"posts"`
-	PostsTotal       int64                 `json:"posts_total"`
-	PostPage         int                   `json:"post_page"`
-	PostPageSize     int                   `json:"post_page_size"`
-	Comments         []UserHomeCommentItem `json:"comments"`
-	CommentsTotal    int64                 `json:"comments_total"`
-	CommentPage      int                   `json:"comment_page"`
-	CommentPageSize  int                   `json:"comment_page_size"`
+	UserID          int64                 `json:"user_id"`
+	Username        string                `json:"username"`
+	Posts           []UserHomePostItem    `json:"posts"`
+	PostsTotal      int64                 `json:"posts_total"`
+	PostPage        int                   `json:"post_page"`
+	PostPageSize    int                   `json:"post_page_size"`
+	Comments        []UserHomeCommentItem `json:"comments"`
+	CommentsTotal   int64                 `json:"comments_total"`
+	CommentPage     int                   `json:"comment_page"`
+	CommentPageSize int                   `json:"comment_page_size"`
 }

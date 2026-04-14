@@ -25,6 +25,9 @@ func CreateComment(postID int64, userID int64, p *models.ParamCreateComment) err
 	if row.SealedAt.Valid {
 		return ErrPostSealed
 	}
+	if row.LockedAt.Valid {
+		return ErrPostCommentsLocked
+	}
 	var parentID sql.NullInt64
 	if p.ParentID != nil {
 		if *p.ParentID < 1 {
@@ -112,6 +115,9 @@ func VoteComment(postID, commentID, userID int64, value int8) (*models.PostVoteR
 	}
 	if full.SealedAt.Valid {
 		return nil, ErrPostSealed
+	}
+	if full.LockedAt.Valid {
+		return nil, ErrPostCommentsLocked
 	}
 	score, myVote, err := postgres.ApplyCommentVote(postID, commentID, userID, value)
 	if err != nil {

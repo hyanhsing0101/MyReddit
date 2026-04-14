@@ -80,6 +80,10 @@ func CreateCommentHandler(c *gin.Context) {
 			ResponseError(c, CodePostSealed)
 			return
 		}
+		if errors.Is(err, logic.ErrPostCommentsLocked) {
+			ResponseError(c, CodePostCommentsLocked)
+			return
+		}
 		zap.L().Error("CreateComment Failed", zap.Error(err), zap.Int64("post_id", postID))
 		ResponseError(c, CodeServerBusy)
 		return

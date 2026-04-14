@@ -40,6 +40,26 @@ export const API_INVALID_COMMENT_PARENT_CODE = 1022;
 export const API_PARENT_COMMENT_MISMATCH_CODE = 1023;
 /** 与后端 controller.CodeInvalidBoardID 一致 */
 export const API_INVALID_BOARD_ID_CODE = 1024;
+/** 与后端 controller.CodePostCommentsLocked 一致 */
+export const API_POST_COMMENTS_LOCKED_CODE = 1025;
+/** 与后端 controller.CodeCannotReportOwnPost 一致 */
+export const API_CANNOT_REPORT_OWN_POST_CODE = 1026;
+/** 与后端 controller.CodeDuplicatePostReport 一致 */
+export const API_DUPLICATE_POST_REPORT_CODE = 1027;
+/** 与后端 controller.CodePostReportNotExist 一致 */
+export const API_POST_REPORT_NOT_EXIST_CODE = 1028;
+/** 与后端 controller.CodeCannotAppealUnsealedPost 一致 */
+export const API_CANNOT_APPEAL_UNSEALED_POST_CODE = 1029;
+/** 与后端 controller.CodePostAppealNotExist 一致 */
+export const API_POST_APPEAL_NOT_EXIST_CODE = 1030;
+/** 与后端 controller.CodePostNotSoftDeleted 一致 */
+export const API_POST_NOT_SOFT_DELETED_CODE = 1031;
+/** 与后端 controller.CodeCannotReportOwnComment 一致 */
+export const API_CANNOT_REPORT_OWN_COMMENT_CODE = 1032;
+/** 与后端 controller.CodeDuplicateCommentReport 一致 */
+export const API_DUPLICATE_COMMENT_REPORT_CODE = 1033;
+/** 与后端 controller.CodeCommentReportNotExist 一致 */
+export const API_COMMENT_REPORT_NOT_EXIST_CODE = 1034;
 
 export type ApiResponse<T> = {
   code: number;
@@ -95,6 +115,10 @@ export async function apiLogin(payload: {
 export type PostModerationActions = {
   can_seal: boolean;
   can_unseal: boolean;
+  can_lock_comments: boolean;
+  can_unlock_comments: boolean;
+  can_pin: boolean;
+  can_unpin: boolean;
 };
 
 export type PostItem = {
@@ -114,6 +138,8 @@ export type PostItem = {
   is_favorited?: boolean;
   sealed?: boolean;
   seal_kind?: string;
+  comments_locked?: boolean;
+  pinned?: boolean;
   moderation_actions?: PostModerationActions;
   create_time: string;
   update_time: string;
@@ -129,18 +155,25 @@ export type PostListPayload = {
 /** 与后端 GET /posts?sort= 一致 */
 export type PostSort = "new" | "hot" | "top";
 
+/** 全站列表或仅已收藏板块（订阅流，须登录）。 */
+export type PostListFeed = "all" | "subscribed";
+
 export async function apiListPosts(
   page = 1,
   pageSize = 10,
   boardId?: number,
   accessToken?: string | null,
   sort: PostSort = "new",
+  feed: PostListFeed = "all",
 ): Promise<ApiResponse<PostListPayload>> {
   const q = new URLSearchParams({
     page: String(page),
     page_size: String(pageSize),
     sort,
   });
+  if (feed === "subscribed") {
+    q.set("feed", "subscribed");
+  }
   if (boardId != null && boardId >= 1) {
     q.set("board_id", String(boardId));
   }
@@ -290,6 +323,117 @@ export async function apiUnsealPost(
   const res = await fetch(`${API_BASE}/posts/${postId}/seal`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<null>(res);
+}
+
+export async function apiLockPostComments(
+  accessToken: string,
+  postId: number,
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/posts/${postId}/lock-comments`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<null>(res);
+}
+
+export async function apiUnlockPostComments(
+  accessToken: string,
+  postId: number,
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/posts/${postId}/lock-comments`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<null>(res);
+}
+
+export async function apiPinPost(
+  accessToken: string,
+  postId: number,
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/posts/${postId}/pin`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<null>(res);
+}
+
+export async function apiUnpinPost(
+  accessToken: string,
+  postId: number,
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/posts/${postId}/pin`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<null>(res);
+}
+
+export async function apiCreatePostReport(
+  accessToken: string,
+  postId: number,
+  payload: { reason: string; detail?: string },
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/posts/${postId}/reports`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  return parseJson<null>(res);
+}
+
+export async function apiCreateCommentReport(
+  accessToken: string,
+  postId: number,
+  commentId: number,
+  payload: { reason: string; detail?: string },
+): Promise<ApiResponse<null>> {
+  const res = await fetch(
+    `${API_BASE}/posts/${postId}/comments/${commentId}/reports`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+  return parseJson<null>(res);
+}
+
+export async function apiGetMyPostAppeal(
+  accessToken: string,
+  postId: number,
+): Promise<ApiResponse<PostAppealItem>> {
+  const res = await fetch(`${API_BASE}/posts/${postId}/appeals/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<PostAppealItem>(res);
+}
+
+export async function apiUpsertMyPostAppeal(
+  accessToken: string,
+  postId: number,
+  payload: {
+    reason: string;
+    requested_title: string;
+    requested_content: string;
+    user_reply?: string;
+  },
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/posts/${postId}/appeals/me`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
   });
   return parseJson<null>(res);
 }
@@ -542,6 +686,149 @@ export type PostFavoriteListPayload = {
   page_size: number;
 };
 
+export type PostReportStatus = "open" | "in_review" | "resolved" | "rejected";
+
+export type PostReportItem = {
+  id: number;
+  post_id: number;
+  post_title: string;
+  board_id: number;
+  reporter_id: number;
+  reporter_username: string;
+  reason: string;
+  detail: string;
+  status: PostReportStatus;
+  handler_id: number | null;
+  handler_username: string;
+  handler_note: string;
+  create_time: string;
+  update_time: string;
+};
+
+export type PostReportListPayload = {
+  list: PostReportItem[];
+  total: number;
+  pending_open: number;
+  page: number;
+  page_size: number;
+};
+
+/** 与帖子举报工单状态字符串一致 */
+export type CommentReportStatus = PostReportStatus;
+
+export type CommentReportItem = {
+  id: number;
+  comment_id: number;
+  post_id: number;
+  post_title: string;
+  comment_snippet: string;
+  board_id: number;
+  reporter_id: number;
+  reporter_username: string;
+  reason: string;
+  detail: string;
+  status: CommentReportStatus;
+  handler_id: number | null;
+  handler_username: string;
+  handler_note: string;
+  create_time: string;
+  update_time: string;
+};
+
+export type CommentReportListPayload = {
+  list: CommentReportItem[];
+  total: number;
+  pending_open: number;
+  page: number;
+  page_size: number;
+};
+
+export type DeletedPostRow = {
+  id: number;
+  title: string;
+  author_id?: number;
+  deleted_at: string;
+};
+
+export type DeletedPostListPayload = {
+  list: DeletedPostRow[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export type PostAppealStatus = "open" | "in_review" | "approved" | "rejected";
+
+export type PostAppealItem = {
+  id: number;
+  post_id: number;
+  post_title: string;
+  board_id: number;
+  author_id: number;
+  author_username: string;
+  reason: string;
+  requested_title: string;
+  requested_content: string;
+  user_reply: string;
+  status: PostAppealStatus;
+  moderator_id: number | null;
+  moderator_username: string;
+  moderator_reply: string;
+  create_time: string;
+  update_time: string;
+};
+
+export type PostAppealListPayload = {
+  list: PostAppealItem[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export type ModerationDashboardPayload = {
+  pending_reports: number;
+  in_review_reports: number;
+  resolved_reports_7d: number;
+  rejected_reports_7d: number;
+  logs_24h: number;
+  reports_created_24h: number;
+};
+
+export type ModerationAction =
+  | "seal_post"
+  | "unseal_post"
+  | "delete_post"
+  | "restore_post"
+  | "handle_post_appeal"
+  | "lock_post_comments"
+  | "unlock_post_comments"
+  | "pin_post"
+  | "unpin_post"
+  | "update_post_report_status"
+  | "update_comment_report_status"
+  | "upsert_board_moderator"
+  | "update_board_moderator_role"
+  | "remove_board_moderator";
+
+export type ModerationLogItem = {
+  id: number;
+  board_id: number;
+  operator_id: number;
+  operator_username: string;
+  action: ModerationAction;
+  target_type: "post" | "post_report" | "comment_report" | "board_moderator";
+  target_id: number;
+  description: string;
+  create_time: string;
+};
+
+export type ModerationLogListPayload = {
+  list: ModerationLogItem[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
 export async function apiListFavoriteBoards(
   accessToken: string,
   page = 1,
@@ -570,6 +857,224 @@ export async function apiListFavoritePosts(
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   return parseJson<PostFavoriteListPayload>(res);
+}
+
+export async function apiListBoardReports(
+  accessToken: string,
+  boardId: number,
+  page = 1,
+  pageSize = 20,
+  status?: PostReportStatus | "",
+): Promise<ApiResponse<PostReportListPayload>> {
+  const q = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  if (status) q.set("status", status);
+  const res = await fetch(`${API_BASE}/boards/${boardId}/reports?${q.toString()}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<PostReportListPayload>(res);
+}
+
+export async function apiBatchUpdateBoardReports(
+  accessToken: string,
+  boardId: number,
+  payload: { report_ids: number[]; status: PostReportStatus; handler_note?: string },
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/boards/${boardId}/reports`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  return parseJson<null>(res);
+}
+
+export async function apiUpdateBoardReportStatus(
+  accessToken: string,
+  boardId: number,
+  reportId: number,
+  payload: { status: PostReportStatus; handler_note?: string },
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/boards/${boardId}/reports/${reportId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  return parseJson<null>(res);
+}
+
+export async function apiListBoardCommentReports(
+  accessToken: string,
+  boardId: number,
+  page = 1,
+  pageSize = 20,
+  status?: CommentReportStatus | "",
+): Promise<ApiResponse<CommentReportListPayload>> {
+  const q = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  if (status) q.set("status", status);
+  const res = await fetch(
+    `${API_BASE}/boards/${boardId}/comment-reports?${q.toString()}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
+  return parseJson<CommentReportListPayload>(res);
+}
+
+export async function apiBatchUpdateBoardCommentReports(
+  accessToken: string,
+  boardId: number,
+  payload: {
+    report_ids: number[];
+    status: CommentReportStatus;
+    handler_note?: string;
+  },
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/boards/${boardId}/comment-reports`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  return parseJson<null>(res);
+}
+
+export async function apiUpdateBoardCommentReportStatus(
+  accessToken: string,
+  boardId: number,
+  reportId: number,
+  payload: { status: CommentReportStatus; handler_note?: string },
+): Promise<ApiResponse<null>> {
+  const res = await fetch(
+    `${API_BASE}/boards/${boardId}/comment-reports/${reportId}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+  return parseJson<null>(res);
+}
+
+export async function apiListBoardDeletedPosts(
+  accessToken: string,
+  boardId: number,
+  page = 1,
+  pageSize = 20,
+): Promise<ApiResponse<DeletedPostListPayload>> {
+  const q = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  const res = await fetch(
+    `${API_BASE}/boards/${boardId}/deleted-posts?${q.toString()}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
+  return parseJson<DeletedPostListPayload>(res);
+}
+
+export async function apiRestorePost(
+  accessToken: string,
+  postId: number,
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/posts/${postId}/restore`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<null>(res);
+}
+
+export async function apiListBoardAppeals(
+  accessToken: string,
+  boardId: number,
+  page = 1,
+  pageSize = 20,
+  status?: PostAppealStatus | "",
+): Promise<ApiResponse<PostAppealListPayload>> {
+  const q = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  if (status) q.set("status", status);
+  const res = await fetch(`${API_BASE}/boards/${boardId}/appeals?${q.toString()}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<PostAppealListPayload>(res);
+}
+
+export async function apiHandleBoardAppeal(
+  accessToken: string,
+  boardId: number,
+  appealId: number,
+  payload: {
+    status: "in_review" | "approved" | "rejected";
+    moderator_reply?: string;
+    apply_update?: boolean;
+  },
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/boards/${boardId}/appeals/${appealId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  return parseJson<null>(res);
+}
+
+export async function apiListBoardModerationLogs(
+  accessToken: string,
+  boardId: number,
+  page = 1,
+  pageSize = 20,
+  action?: ModerationAction | "",
+  targetType?:
+    | "post"
+    | "post_report"
+    | "comment_report"
+    | "board_moderator"
+    | "",
+  targetID?: number | null,
+): Promise<ApiResponse<ModerationLogListPayload>> {
+  const q = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  if (action) q.set("action", action);
+  if (targetType) q.set("target_type", targetType);
+  if (targetID != null && targetID >= 1) q.set("target_id", String(targetID));
+  const res = await fetch(`${API_BASE}/boards/${boardId}/mod-logs?${q.toString()}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<ModerationLogListPayload>(res);
+}
+
+export async function apiGetModerationDashboard(
+  accessToken: string,
+  boardId: number,
+): Promise<ApiResponse<ModerationDashboardPayload>> {
+  const res = await fetch(`${API_BASE}/boards/${boardId}/mod-dashboard`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return parseJson<ModerationDashboardPayload>(res);
 }
 
 export async function apiAddBoardFavorite(

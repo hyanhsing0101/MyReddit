@@ -15,8 +15,8 @@ const boardSlugReserved = "_archived"
 var boardSlugPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_]{0,62}$`)
 
 var (
-	ErrBoardSlugReserved = errors.New("board slug reserved")
-	ErrBoardSlugInvalid  = errors.New("board slug invalid")
+	ErrBoardSlugReserved      = errors.New("board slug reserved")
+	ErrBoardSlugInvalid       = errors.New("board slug invalid")
 	ErrBoardNameEmpty         = errors.New("board name empty")
 	ErrBoardVisibilityInvalid = errors.New("board visibility invalid")
 	// ErrCannotFavoriteSystemBoard 系统归档板等不可收藏
@@ -162,13 +162,13 @@ func CreateBoard(p *models.ParamCreateBoard, userID int64) error {
 	}
 	now := time.Now()
 	b := models.Board{
-		Slug:         slug,
-		Name:         name,
-		Description:  descNull,
-		CreatedBy:    sql.NullInt64{Int64: userID, Valid: true},
-		Visibility:   vis,
-		CreateTime:   now,
-		UpdateTime:   now,
+		Slug:        slug,
+		Name:        name,
+		Description: descNull,
+		CreatedBy:   sql.NullInt64{Int64: userID, Valid: true},
+		Visibility:  vis,
+		CreateTime:  now,
+		UpdateTime:  now,
 	}
 	return postgres.CreateBoardWithModerator(&b, userID)
 }

@@ -26,6 +26,7 @@ backend/myreddit.exe
 # Local tooling / generated data
 .data/
 .postman/
+.gomodcache/
 
 # Docker local data (infra)
 infra/docker/data/

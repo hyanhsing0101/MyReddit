@@ -13,6 +13,7 @@ import {
   tagDisplayLabel,
   type BoardItem,
   type PostItem,
+  type PostListFeed,
   type PostSort,
   type SearchScope,
 } from "@/lib/api";
@@ -39,6 +40,7 @@ export default function HomeClient() {
   const [listTotal, setListTotal] = useState(0);
   const [listPageSize] = useState(10);
   const [listSort, setListSort] = useState<PostSort>("hot");
+  const [listFeed, setListFeed] = useState<PostListFeed>("all");
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
 
@@ -61,6 +63,14 @@ export default function HomeClient() {
   const loadPosts = useCallback(async (page: number) => {
     setListLoading(true);
     setListError(null);
+    if (listFeed === "subscribed" && !getAccessToken()) {
+      setListError("订阅流仅登录可用，请先登录后在板块页收藏感兴趣的板块。");
+      setPosts([]);
+      setListTotal(0);
+      setListPage(1);
+      setListLoading(false);
+      return;
+    }
     try {
       const token = getAccessToken();
       const body = await apiListPosts(
@@ -69,6 +79,7 @@ export default function HomeClient() {
         undefined,
         token,
         listSort,
+        listFeed,
       );
       if (body.code !== API_SUCCESS_CODE || !body.data) {
         setListError(apiErrorMessage(body));
@@ -84,14 +95,19 @@ export default function HomeClient() {
     } finally {
       setListLoading(false);
     }
-  }, [listPageSize, listSort]);
+  }, [listPageSize, listSort, listFeed]);
 
   useEffect(() => {
     void loadPosts(listPage);
-  }, [listPage, loggedIn, listSort, loadPosts]);
+  }, [listPage, loggedIn, listSort, listFeed, loadPosts]);
 
   function handleListSort(next: PostSort) {
     setListSort(next);
+    setListPage(1);
+  }
+
+  function handleListFeed(next: PostListFeed) {
+    setListFeed(next);
     setListPage(1);
   }
 
@@ -166,7 +182,7 @@ export default function HomeClient() {
           MyReddit
         </h1>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          全站帖子流（最新 / 热门 / 高分）· 登录后可发帖与 Ping
+          全站或订阅流（已收藏板块）· 最新 / 热门 / 高分 · 登录后可发帖与 Ping
         </p>
       </div>
 
@@ -301,27 +317,50 @@ export default function HomeClient() {
           <h2 className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
             帖子
           </h2>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                { id: "new" as const, label: "最新" },
-                { id: "hot" as const, label: "热门" },
-                { id: "top" as const, label: "高分" },
-              ] as const
-            ).map(({ id, label }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => handleListSort(id)}
-                className={
-                  listSort === id
-                    ? "rounded-lg border border-zinc-900 bg-zinc-900 px-3 py-1 text-xs text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
-                    : "rounded-lg border border-zinc-300 px-3 py-1 text-xs dark:border-zinc-600"
-                }
-              >
-                {label}
-              </button>
-            ))}
+          <div className="flex flex-col items-stretch gap-2 sm:items-end">
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { id: "all" as const, label: "全站" },
+                  { id: "subscribed" as const, label: "订阅" },
+                ] as const
+              ).map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => handleListFeed(id)}
+                  className={
+                    listFeed === id
+                      ? "rounded-lg border border-zinc-900 bg-zinc-900 px-3 py-1 text-xs text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                      : "rounded-lg border border-zinc-300 px-3 py-1 text-xs dark:border-zinc-600"
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { id: "new" as const, label: "最新" },
+                  { id: "hot" as const, label: "热门" },
+                  { id: "top" as const, label: "高分" },
+                ] as const
+              ).map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => handleListSort(id)}
+                  className={
+                    listSort === id
+                      ? "rounded-lg border border-zinc-900 bg-zinc-900 px-3 py-1 text-xs text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                      : "rounded-lg border border-zinc-300 px-3 py-1 text-xs dark:border-zinc-600"
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
         <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -335,7 +374,9 @@ export default function HomeClient() {
             </p>
           ) : posts.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-zinc-500">
-              暂无帖子
+              {listFeed === "subscribed"
+                ? "暂无帖子。在板块列表或详情中收藏板块后，帖子会出现在此。"
+                : "暂无帖子"}
             </p>
           ) : (
             posts.map((post) => (

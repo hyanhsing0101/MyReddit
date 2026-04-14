@@ -320,6 +320,12 @@ export default function BoardModeratorsPage() {
             说明：需要 owner 或站主权限才能改动；最后一个 owner 不能移除或降级。
           </p>
           <p className="mt-2">
+            <Link
+              href={`/boards/${encodeURIComponent(slug)}/moderation`}
+              className="mr-4 text-sm text-zinc-500 underline"
+            >
+              治理工作台
+            </Link>
             <Link href="/boards" className="text-sm text-zinc-500 underline">
               板块列表
             </Link>

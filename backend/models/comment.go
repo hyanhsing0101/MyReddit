@@ -6,16 +6,16 @@ import (
 )
 
 type Comment struct {
-	ID               int64          `db:"id"`
-	PostID           int64          `db:"post_id"`
-	AuthorID         sql.NullInt64  `db:"author_id"`
-	ParentID         sql.NullInt64  `db:"parent_id"`
-	Content          string         `db:"content"`
-	DeletedAt        sql.NullTime   `db:"deleted_at"`
-	Score            int64          `db:"score"`
-	CreateTime       time.Time      `db:"create_time"`
-	UpdateTime       time.Time      `db:"update_time"`
-	AuthorUsername   sql.NullString `db:"author_username"`
+	ID             int64          `db:"id"`
+	PostID         int64          `db:"post_id"`
+	AuthorID       sql.NullInt64  `db:"author_id"`
+	ParentID       sql.NullInt64  `db:"parent_id"`
+	Content        string         `db:"content"`
+	DeletedAt      sql.NullTime   `db:"deleted_at"`
+	Score          int64          `db:"score"`
+	CreateTime     time.Time      `db:"create_time"`
+	UpdateTime     time.Time      `db:"update_time"`
+	AuthorUsername sql.NullString `db:"author_username"`
 }
 
 type CommentView struct {

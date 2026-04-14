@@ -42,6 +42,7 @@ const (
 	CodeNotBoardMember
 	CodeCannotFavoritePublicBoard
 	CodePostSealed
+	CodePostCommentsLocked
 
 	// =============================================================================
 	// 精细业务语义
@@ -56,6 +57,15 @@ const (
 	CodeInvalidCommentParent
 	CodeParentCommentMismatch
 	CodeInvalidBoardID
+	CodeCannotReportOwnPost
+	CodeDuplicatePostReport
+	CodePostReportNotExist
+	CodeCannotAppealUnsealedPost
+	CodePostAppealNotExist
+	CodePostNotSoftDeleted
+	CodeCannotReportOwnComment
+	CodeDuplicateCommentReport
+	CodeCommentReportNotExist
 )
 
 var codeMsgMap = map[ResCode]string{
@@ -79,22 +89,32 @@ var codeMsgMap = map[ResCode]string{
 	CodeBoardSlugTaken: "board slug taken",
 
 	// ----- 权限 -----
-	CodeForbidden:                "forbidden",
-	CodeNotBoardMember:           "not board member",
+	CodeForbidden:                 "forbidden",
+	CodeNotBoardMember:            "not board member",
 	CodeCannotFavoritePublicBoard: "cannot favorite public board",
 	CodePostSealed:                "post sealed",
+	CodePostCommentsLocked:        "post comments locked",
 
 	// ----- 精细业务语义 -----
-	CodeCommentNotExist:        "comment not exist",
-	CodeInvalidVoteValue:       "invalid vote value",
-	CodeTagNotExist:            "tag not exist",
-	CodeTagCountExceeded:       "tag count exceeded",
-	CodeCannotPostToSystemBoard: "cannot post to system board",
-	CodeBoardModeratorNotExist: "board moderator not exist",
-	CodeCannotRemoveLastOwner:  "cannot remove last owner",
-	CodeInvalidCommentParent:   "invalid parent comment",
-	CodeParentCommentMismatch:  "parent comment mismatch",
-	CodeInvalidBoardID:         "invalid board id",
+	CodeCommentNotExist:          "comment not exist",
+	CodeInvalidVoteValue:         "invalid vote value",
+	CodeTagNotExist:              "tag not exist",
+	CodeTagCountExceeded:         "tag count exceeded",
+	CodeCannotPostToSystemBoard:  "cannot post to system board",
+	CodeBoardModeratorNotExist:   "board moderator not exist",
+	CodeCannotRemoveLastOwner:    "cannot remove last owner",
+	CodeInvalidCommentParent:     "invalid parent comment",
+	CodeParentCommentMismatch:    "parent comment mismatch",
+	CodeInvalidBoardID:           "invalid board id",
+	CodeCannotReportOwnPost:      "cannot report own post",
+	CodeDuplicatePostReport:      "duplicate post report",
+	CodePostReportNotExist:       "post report not exist",
+	CodeCannotAppealUnsealedPost: "cannot appeal unsealed post",
+	CodePostAppealNotExist:       "post appeal not exist",
+	CodePostNotSoftDeleted:       "post not soft deleted",
+	CodeCannotReportOwnComment:   "cannot report own comment",
+	CodeDuplicateCommentReport:   "duplicate comment report",
+	CodeCommentReportNotExist:    "comment report not exist",
 }
 
 func (c ResCode) Msg() string {
@@ -118,10 +138,14 @@ func (c ResCode) HTTPStatus() int {
 		return http.StatusUnauthorized
 	case CodePostNotExist, CodeBoardNotExist, CodeCommentNotExist, CodeTagNotExist, CodeBoardModeratorNotExist:
 		return http.StatusNotFound
+	case CodePostReportNotExist, CodePostAppealNotExist, CodeCommentReportNotExist:
+		return http.StatusNotFound
 	case CodeForbidden, CodeNotBoardMember, CodeCannotFavoritePublicBoard, CodeCannotPostToSystemBoard:
 		return http.StatusForbidden
-	case CodePostSealed, CodeCannotRemoveLastOwner:
+	case CodePostSealed, CodePostCommentsLocked, CodeCannotRemoveLastOwner, CodeDuplicatePostReport, CodeDuplicateCommentReport:
 		return http.StatusConflict
+	case CodeCannotReportOwnPost, CodeCannotAppealUnsealedPost, CodePostNotSoftDeleted, CodeCannotReportOwnComment:
+		return http.StatusBadRequest
 	case CodeInvalidVoteValue, CodeTagCountExceeded, CodeInvalidCommentParent, CodeParentCommentMismatch, CodeInvalidBoardID:
 		return http.StatusBadRequest
 	case CodeServerBusy:

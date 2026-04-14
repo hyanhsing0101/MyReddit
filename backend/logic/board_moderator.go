@@ -2,6 +2,7 @@ package logic
 
 import (
 	"errors"
+	"fmt"
 	"myreddit/dao/postgres"
 	"myreddit/models"
 	"time"
@@ -51,7 +52,18 @@ func AddOrUpdateBoardModerator(boardID, operatorID int64, p *models.ParamAddBoar
 		return err
 	}
 	now := time.Now()
-	return postgres.UpsertBoardModerator(boardID, p.UserID, p.Role, operatorID, now)
+	if err := postgres.UpsertBoardModerator(boardID, p.UserID, p.Role, operatorID, now); err != nil {
+		return err
+	}
+	appendModerationLog(
+		boardID,
+		operatorID,
+		models.ModerationActionUpsertBoardModerator,
+		models.ModerationTargetModerator,
+		p.UserID,
+		fmt.Sprintf("role=%s", p.Role),
+	)
+	return nil
 }
 
 func UpdateBoardModeratorRole(boardID, targetUserID, operatorID int64, p *models.ParamUpdateBoardModeratorRole) error {
@@ -88,6 +100,14 @@ func UpdateBoardModeratorRole(boardID, targetUserID, operatorID int64, p *models
 	if !okUpdated {
 		return ErrBoardModeratorNotExist
 	}
+	appendModerationLog(
+		boardID,
+		operatorID,
+		models.ModerationActionUpdateBoardModerator,
+		models.ModerationTargetModerator,
+		targetUserID,
+		fmt.Sprintf("new_role=%s", p.Role),
+	)
 	return nil
 }
 
@@ -125,5 +145,13 @@ func RemoveBoardModerator(boardID, targetUserID, operatorID int64) error {
 	if !okDeleted {
 		return ErrBoardModeratorNotExist
 	}
+	appendModerationLog(
+		boardID,
+		operatorID,
+		models.ModerationActionRemoveBoardModerator,
+		models.ModerationTargetModerator,
+		targetUserID,
+		"",
+	)
 	return nil
 }

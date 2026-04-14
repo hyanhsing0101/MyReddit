@@ -27,8 +27,8 @@ type MyClaims struct {
 
 func GenAccessToken(userID int64, username string) (string, error) {
 	c := MyClaims{
-		UserID:   userID,
-		Username: username,
+		UserID:    userID,
+		Username:  username,
 		TokenType: TokenTypeAccess,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(TokenExpireDuration).Unix(),
@@ -45,8 +45,8 @@ func GenRefreshToken(userID int64, username string) (string, string, error) {
 		return "", "", err
 	}
 	c := MyClaims{
-		UserID:   userID,
-		Username: username,
+		UserID:    userID,
+		Username:  username,
 		TokenType: TokenTypeRefresh,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(RefreshTokenExpireDuration).Unix(),

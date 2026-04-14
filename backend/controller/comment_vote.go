@@ -59,6 +59,10 @@ func VoteCommentHandler(c *gin.Context) {
 			ResponseError(c, CodePostSealed)
 			return
 		}
+		if errors.Is(err, logic.ErrPostCommentsLocked) {
+			ResponseError(c, CodePostCommentsLocked)
+			return
+		}
 		zap.L().Error("VoteComment Failed", zap.Error(err), zap.Int64("post_id", postID), zap.Int64("comment_id", commentID))
 		ResponseError(c, CodeServerBusy)
 		return

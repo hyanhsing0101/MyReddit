@@ -209,6 +209,14 @@ export default function BoardDetailClient() {
                   版主管理
                 </Link>
               ) : null}
+              {getAccessToken() && !board.is_system_sink ? (
+                <Link
+                  href={`/boards/${encodeURIComponent(board.slug)}/moderation`}
+                  className="rounded-lg border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-600"
+                >
+                  治理工作台
+                </Link>
+              ) : null}
             </div>
           </div>
           {board.description ? (
