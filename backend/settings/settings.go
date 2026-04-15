@@ -19,6 +19,15 @@ type AppConfig struct {
 	*LogConfig      `mapstructure:"log"`
 	*PostgresConfig `mapstructure:"postgres"`
 	*RedisConfig    `mapstructure:"redis"`
+	Upload          *UploadConfig `mapstructure:"upload"`
+}
+
+// UploadConfig 本地图床（上线时请配置 public_url 与 HTTPS 反代，并定期备份 dir）。
+type UploadConfig struct {
+	Enabled   bool   `mapstructure:"enabled"`
+	Dir       string `mapstructure:"dir"`
+	MaxBytes  int64  `mapstructure:"max_bytes"`
+	PublicURL string `mapstructure:"public_url"`
 }
 
 type LogConfig struct {

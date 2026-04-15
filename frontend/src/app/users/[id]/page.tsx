@@ -11,12 +11,7 @@ import {
   type UserHomePayload,
 } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth-storage";
-
-function previewText(text: string, max = 80) {
-  const t = text.replace(/\s+/g, " ").trim();
-  if (t.length <= max) return t;
-  return `${t.slice(0, max)}…`;
-}
+import { stripMarkdownPreview } from "@/lib/markdown-preview";
 
 export default function UserHomePage() {
   const params = useParams();
@@ -196,7 +191,7 @@ export default function UserHomePage() {
                       {c.post_title || `帖子 ${c.post_id}`}
                     </Link>
                     <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
-                      {previewText(c.content)}
+                      {stripMarkdownPreview(c.content, 80)}
                     </p>
                     <p className="mt-1 text-xs text-zinc-500">分数 {c.score}</p>
                   </div>

@@ -28,3 +28,10 @@ redis:
   password: ""
   db: 0
   pool_size: 100
+
+# 图床（本地磁盘）。上线请改 public_url 为浏览器可访问的 API 根（HTTPS），并做好备份与磁盘限额。
+upload:
+  enabled: true
+  dir: "./data/uploads"
+  max_bytes: 5242880
+  public_url: "http://127.0.0.1:8081"

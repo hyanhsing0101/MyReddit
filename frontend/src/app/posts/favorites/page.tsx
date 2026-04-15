@@ -10,12 +10,7 @@ import {
   type PostFavoriteRow,
 } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth-storage";
-
-function previewText(text: string, max = 110) {
-  const t = text.replace(/\s+/g, " ").trim();
-  if (t.length <= max) return t;
-  return `${t.slice(0, max)}…`;
-}
+import { stripMarkdownPreview } from "@/lib/markdown-preview";
 
 export default function PostFavoritesPage() {
   const [rows, setRows] = useState<PostFavoriteRow[]>([]);
@@ -103,7 +98,7 @@ export default function PostFavoritesPage() {
                   </Link>
                 </h2>
                 <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                  {previewText(p.content)}
+                  {stripMarkdownPreview(p.content, 110)}
                 </p>
                 <p className="mt-2 text-xs text-zinc-500">
                   收藏于 {new Date(p.favorited_at).toLocaleString()} ·

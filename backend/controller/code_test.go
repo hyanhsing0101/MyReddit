@@ -46,6 +46,9 @@ func TestResCodeHTTPStatus(t *testing.T) {
 		{name: "cannot report own comment", code: CodeCannotReportOwnComment, want: http.StatusBadRequest},
 		{name: "duplicate comment report", code: CodeDuplicateCommentReport, want: http.StatusConflict},
 		{name: "comment report not exist", code: CodeCommentReportNotExist, want: http.StatusNotFound},
+		{name: "upload disabled", code: CodeUploadDisabled, want: http.StatusForbidden},
+		{name: "upload too large", code: CodeUploadTooLarge, want: http.StatusRequestEntityTooLarge},
+		{name: "upload invalid image", code: CodeUploadInvalidImage, want: http.StatusBadRequest},
 		{name: "server busy", code: CodeServerBusy, want: http.StatusInternalServerError},
 	}
 

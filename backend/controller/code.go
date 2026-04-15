@@ -66,6 +66,9 @@ const (
 	CodeCannotReportOwnComment
 	CodeDuplicateCommentReport
 	CodeCommentReportNotExist
+	CodeUploadDisabled
+	CodeUploadTooLarge
+	CodeUploadInvalidImage
 )
 
 var codeMsgMap = map[ResCode]string{
@@ -115,6 +118,9 @@ var codeMsgMap = map[ResCode]string{
 	CodeCannotReportOwnComment:   "cannot report own comment",
 	CodeDuplicateCommentReport:   "duplicate comment report",
 	CodeCommentReportNotExist:    "comment report not exist",
+	CodeUploadDisabled:           "upload disabled",
+	CodeUploadTooLarge:           "upload too large",
+	CodeUploadInvalidImage:       "upload invalid image",
 }
 
 func (c ResCode) Msg() string {
@@ -140,14 +146,16 @@ func (c ResCode) HTTPStatus() int {
 		return http.StatusNotFound
 	case CodePostReportNotExist, CodePostAppealNotExist, CodeCommentReportNotExist:
 		return http.StatusNotFound
-	case CodeForbidden, CodeNotBoardMember, CodeCannotFavoritePublicBoard, CodeCannotPostToSystemBoard:
+	case CodeForbidden, CodeNotBoardMember, CodeCannotFavoritePublicBoard, CodeCannotPostToSystemBoard, CodeUploadDisabled:
 		return http.StatusForbidden
 	case CodePostSealed, CodePostCommentsLocked, CodeCannotRemoveLastOwner, CodeDuplicatePostReport, CodeDuplicateCommentReport:
 		return http.StatusConflict
 	case CodeCannotReportOwnPost, CodeCannotAppealUnsealedPost, CodePostNotSoftDeleted, CodeCannotReportOwnComment:
 		return http.StatusBadRequest
-	case CodeInvalidVoteValue, CodeTagCountExceeded, CodeInvalidCommentParent, CodeParentCommentMismatch, CodeInvalidBoardID:
+	case CodeInvalidVoteValue, CodeTagCountExceeded, CodeInvalidCommentParent, CodeParentCommentMismatch, CodeInvalidBoardID, CodeUploadInvalidImage:
 		return http.StatusBadRequest
+	case CodeUploadTooLarge:
+		return http.StatusRequestEntityTooLarge
 	case CodeServerBusy:
 		return http.StatusInternalServerError
 	default:

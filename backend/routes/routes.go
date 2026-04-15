@@ -4,7 +4,10 @@ import (
 	"myreddit/controller"
 	"myreddit/logger"
 	"myreddit/middleware"
+	"myreddit/settings"
 	"net/http"
+	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,6 +18,12 @@ func SetupRouter(mode string) *gin.Engine {
 	r := gin.New()
 	r.Use(logger.GinLogger(), logger.GinRecovery(true))
 	r.Use(middleware.CORS())
+
+	if u := settings.Conf.Upload; u != nil && u.Enabled && strings.TrimSpace(u.Dir) != "" {
+		if abs, err := filepath.Abs(strings.TrimSpace(u.Dir)); err == nil {
+			r.Static("/uploads", abs)
+		}
+	}
 
 	// === Auth ===
 	r.POST("/signup", controller.SignUpHandler)
@@ -98,6 +107,8 @@ func SetupRouter(mode string) *gin.Engine {
 	r.GET("/me/permissions", middleware.JWTAuthMiddleware(), controller.MePermissionsHandler)
 	r.GET("/me/favorite-boards", middleware.JWTAuthMiddleware(), controller.ListMyFavoriteBoardsHandler)
 	r.GET("/me/favorite-posts", middleware.JWTAuthMiddleware(), controller.ListMyFavoritePostsHandler)
+
+	r.POST("/uploads", middleware.JWTAuthMiddleware(), controller.UploadImageHandler)
 
 	// === Debug ===
 	r.GET("/debug/auth/any", middleware.JWTAuthMiddleware(), controller.DebugAuthAnyHandler)

@@ -9,6 +9,7 @@ import {
   apiCreateBoard,
   apiErrorMessage,
 } from "@/lib/api";
+import { MarkdownEditor } from "@/components/markdown-editor";
 import { getAccessToken } from "@/lib/auth-storage";
 
 export default function NewBoardPage() {
@@ -140,15 +141,17 @@ export default function NewBoardPage() {
             <span>私有：仅订阅成员与版主可读帖、发帖</span>
           </label>
         </fieldset>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-zinc-600 dark:text-zinc-400">描述（可选）</span>
-          <textarea
-            className="min-h-[120px] rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+        <div className="flex flex-col gap-1 text-sm">
+          <span className="text-zinc-600 dark:text-zinc-400">描述（可选，支持 Markdown）</span>
+          <MarkdownEditor
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={4}
+            onChange={setDescription}
+            accessToken={getAccessToken()}
+            disabled={loading}
+            rows={6}
+            compact
           />
-        </label>
+        </div>
         {error ? (
           <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
         ) : null}

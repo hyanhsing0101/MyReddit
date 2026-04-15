@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { MarkdownEditor } from "@/components/markdown-editor";
 import {
   API_FORBIDDEN_CODE,
   API_POST_NOT_EXIST_CODE,
@@ -206,7 +207,7 @@ export default function EditPostPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-16">
+    <div className="mx-auto max-w-6xl px-4 py-12">
       <div className="mb-8 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">编辑帖子</h1>
         <Link href={`/posts/${post.id}`} className="text-sm text-zinc-500 underline">返回帖子</Link>
@@ -223,16 +224,19 @@ export default function EditPostPage() {
             maxLength={255}
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-zinc-600 dark:text-zinc-400">正文（纯文本）</span>
-          <textarea
-            className="min-h-[240px] rounded-lg border border-zinc-300 bg-white px-3 py-2 font-mono text-sm dark:border-zinc-600 dark:bg-zinc-900"
+        <div className="flex flex-col gap-2 text-sm">
+          <span className="text-zinc-600 dark:text-zinc-400">正文（Markdown）</span>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            展示端经白名单过滤；图片可本地上传或 https 外链。
+          </p>
+          <MarkdownEditor
             value={content}
-            onChange={(e) => setContent(e.target.value)}
-            required
-            rows={12}
+            onChange={setContent}
+            accessToken={getAccessToken()}
+            disabled={saving}
+            rows={16}
           />
-        </label>
+        </div>
         <fieldset className="flex flex-col gap-2 text-sm">
           <legend className="text-zinc-600 dark:text-zinc-400">标签（最多 5 个）</legend>
           {tagsLoading ? (

@@ -16,13 +16,9 @@ import {
   type PostItem,
   type PostSort,
 } from "@/lib/api";
+import { SafeMarkdown } from "@/components/safe-markdown";
 import { getAccessToken } from "@/lib/auth-storage";
-
-function previewText(text: string, max = 100) {
-  const t = text.replace(/\s+/g, " ").trim();
-  if (t.length <= max) return t;
-  return `${t.slice(0, max)}…`;
-}
+import { stripMarkdownPreview } from "@/lib/markdown-preview";
 
 export default function BoardDetailClient() {
   const params = useParams();
@@ -220,9 +216,10 @@ export default function BoardDetailClient() {
             </div>
           </div>
           {board.description ? (
-            <p className="mt-6 whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">
-              {board.description}
-            </p>
+            <SafeMarkdown
+              markdown={board.description}
+              className="mt-6 text-sm text-zinc-700 dark:text-zinc-300"
+            />
           ) : (
             <p className="mt-6 text-sm text-zinc-500">暂无描述</p>
           )}
@@ -321,7 +318,7 @@ export default function BoardDetailClient() {
                         {post.title}
                       </Link>
                       <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                        {previewText(post.content)}
+                        {stripMarkdownPreview(post.content, 100)}
                       </p>
                     </div>
                   </div>

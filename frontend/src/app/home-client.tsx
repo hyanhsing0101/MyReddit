@@ -22,12 +22,7 @@ import {
   getAccessToken,
   getRefreshToken,
 } from "@/lib/auth-storage";
-
-function previewText(text: string, max = 120) {
-  const t = text.replace(/\s+/g, " ").trim();
-  if (t.length <= max) return t;
-  return `${t.slice(0, max)}…`;
-}
+import { stripMarkdownPreview } from "@/lib/markdown-preview";
 
 export default function HomeClient() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -433,7 +428,7 @@ export default function HomeClient() {
                   </Link>
                 </h3>
                 <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                  {previewText(post.content)}
+                  {stripMarkdownPreview(post.content, 120)}
                 </p>
                 {post.tags?.length ? (
                   <p className="mt-2 flex flex-wrap gap-1 text-xs">

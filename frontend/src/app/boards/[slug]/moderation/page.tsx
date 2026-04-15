@@ -1,5 +1,6 @@
 "use client";
 
+import { SafeMarkdown } from "@/components/safe-markdown";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -1128,25 +1129,29 @@ export default function BoardModerationPage() {
                       作者：{a.author_username || a.author_id} · 状态：
                       {APPEAL_STATUS_LABEL[a.status]}
                     </p>
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-800 dark:text-zinc-200">
-                      申诉说明：{a.reason}
-                    </p>
+                    <div className="mt-2 text-sm text-zinc-800 dark:text-zinc-200">
+                      <p className="font-medium">申诉说明</p>
+                      <SafeMarkdown markdown={a.reason} />
+                    </div>
                     {a.user_reply ? (
-                      <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">
-                        作者补充：{a.user_reply}
-                      </p>
+                      <div className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
+                        <p className="font-medium">作者补充</p>
+                        <SafeMarkdown markdown={a.user_reply} />
+                      </div>
                     ) : null}
                     <div className="mt-3 rounded border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-800 dark:bg-zinc-900">
                       <p className="font-medium text-zinc-800 dark:text-zinc-200">修改稿预览</p>
                       <p className="mt-1 text-sm text-zinc-900 dark:text-zinc-100">{a.requested_title}</p>
-                      <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">
-                        {a.requested_content}
-                      </p>
+                      <SafeMarkdown
+                        markdown={a.requested_content}
+                        className="mt-2 text-sm text-zinc-700 dark:text-zinc-300"
+                      />
                     </div>
                     {a.moderator_reply ? (
-                      <p className="mt-2 whitespace-pre-wrap text-xs text-zinc-500">
-                        版主回复：{a.moderator_reply}
-                      </p>
+                      <div className="mt-2 text-xs text-zinc-500">
+                        <p className="font-medium">版主回复</p>
+                        <SafeMarkdown markdown={a.moderator_reply} />
+                      </div>
                     ) : null}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <select

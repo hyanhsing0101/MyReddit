@@ -60,6 +60,12 @@ export const API_CANNOT_REPORT_OWN_COMMENT_CODE = 1032;
 export const API_DUPLICATE_COMMENT_REPORT_CODE = 1033;
 /** 与后端 controller.CodeCommentReportNotExist 一致 */
 export const API_COMMENT_REPORT_NOT_EXIST_CODE = 1034;
+/** 与后端 controller.CodeUploadDisabled 一致 */
+export const API_UPLOAD_DISABLED_CODE = 1035;
+/** 与后端 controller.CodeUploadTooLarge 一致 */
+export const API_UPLOAD_TOO_LARGE_CODE = 1036;
+/** 与后端 controller.CodeUploadInvalidImage 一致 */
+export const API_UPLOAD_INVALID_IMAGE_CODE = 1037;
 
 export type ApiResponse<T> = {
   code: number;
@@ -385,6 +391,24 @@ export async function apiCreatePostReport(
     body: JSON.stringify(payload),
   });
   return parseJson<null>(res);
+}
+
+export type UploadImagePayload = {
+  url: string;
+};
+
+export async function apiUploadImage(
+  accessToken: string,
+  file: File,
+): Promise<ApiResponse<UploadImagePayload>> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(`${API_BASE}/uploads`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: fd,
+  });
+  return parseJson<UploadImagePayload>(res);
 }
 
 export async function apiCreateCommentReport(

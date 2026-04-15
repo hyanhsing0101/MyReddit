@@ -52,7 +52,7 @@ func TestSetupRouter_AllRoutesRegistered(t *testing.T) {
 		"GET /boards/:id/mod-logs",
 		"GET /boards/slug/:slug", "POST /boards/:id/favorite", "POST /boards/:id/unfavorite", "POST /boards/:id/moderators/:uid/role",
 		"GET /tags", "GET /search", "GET /users/:id/home",
-		"GET /me/permissions", "GET /me/favorite-boards", "GET /me/favorite-posts",
+		"GET /me/permissions", "GET /me/favorite-boards", "GET /me/favorite-posts", "POST /uploads",
 		"GET /debug/auth/any", "GET /debug/auth/admin", "GET /ping",
 	}
 
@@ -119,6 +119,7 @@ func TestSetupRouter_ProtectedEndpointsRequireLogin(t *testing.T) {
 		{name: "me permissions", method: http.MethodGet, path: "/me/permissions"},
 		{name: "me favorite boards", method: http.MethodGet, path: "/me/favorite-boards"},
 		{name: "me favorite posts", method: http.MethodGet, path: "/me/favorite-posts"},
+		{name: "upload image", method: http.MethodPost, path: "/uploads"},
 		{name: "debug any", method: http.MethodGet, path: "/debug/auth/any"},
 		{name: "debug admin", method: http.MethodGet, path: "/debug/auth/admin"},
 		{name: "ping", method: http.MethodGet, path: "/ping"},

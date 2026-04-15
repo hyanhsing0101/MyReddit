@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { MarkdownEditor } from "@/components/markdown-editor";
+import { SafeMarkdown } from "@/components/safe-markdown";
 import { CommentVoteControls } from "@/components/comment-vote-controls";
 import { PostFavoriteButton } from "@/components/post-favorite-button";
 import { PostVoteControls } from "@/components/post-vote-controls";
@@ -185,9 +187,10 @@ function CommentBranch({
               </button>
             ) : null}
           </div>
-          <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">
-            {node.content}
-          </p>
+          <SafeMarkdown
+            markdown={node.content}
+            className="mt-1 text-sm text-zinc-700 dark:text-zinc-300"
+          />
           <button
             type="button"
             onClick={() => onReply(node.id, label)}
@@ -1087,19 +1090,24 @@ export default function PostDetailPage() {
                   </div>
                 ) : null}
                 <form onSubmit={handleAppealSubmit} className="mt-3 space-y-3">
-                  <textarea
-                    value={appealReason}
-                    onChange={(e) => setAppealReason(e.target.value)}
-                    maxLength={500}
-                    rows={3}
-                    placeholder="申诉说明（必填）：说明为何应解封、做了哪些整改"
-                    disabled={
-                      appealBusy ||
-                      (!!appeal &&
-                        (appeal.status === "approved" || appeal.status === "rejected"))
-                    }
-                    className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm dark:border-blue-900 dark:bg-zinc-900"
-                  />
+                  <div>
+                    <p className="mb-1 text-xs text-blue-900/70 dark:text-blue-200/70">
+                      申诉说明（必填）
+                    </p>
+                    <MarkdownEditor
+                      value={appealReason}
+                      onChange={(v) => setAppealReason(v.slice(0, 500))}
+                      accessToken={getAccessToken()}
+                      rows={4}
+                      compact
+                      placeholder="说明为何应解封、做了哪些整改"
+                      disabled={
+                        appealBusy ||
+                        (!!appeal &&
+                          (appeal.status === "approved" || appeal.status === "rejected"))
+                      }
+                    />
+                  </div>
                   <input
                     value={appealTitle}
                     onChange={(e) => setAppealTitle(e.target.value)}
@@ -1112,32 +1120,41 @@ export default function PostDetailPage() {
                     }
                     className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm dark:border-blue-900 dark:bg-zinc-900"
                   />
-                  <textarea
-                    value={appealContent}
-                    onChange={(e) => setAppealContent(e.target.value)}
-                    maxLength={20000}
-                    rows={6}
-                    placeholder="修改后的正文（必填）"
-                    disabled={
-                      appealBusy ||
-                      (!!appeal &&
-                        (appeal.status === "approved" || appeal.status === "rejected"))
-                    }
-                    className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm dark:border-blue-900 dark:bg-zinc-900"
-                  />
-                  <textarea
-                    value={appealReply}
-                    onChange={(e) => setAppealReply(e.target.value)}
-                    maxLength={2000}
-                    rows={2}
-                    placeholder="给版主的补充回复（可选，用于追问/补充材料）"
-                    disabled={
-                      appealBusy ||
-                      (!!appeal &&
-                        (appeal.status === "approved" || appeal.status === "rejected"))
-                    }
-                    className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm dark:border-blue-900 dark:bg-zinc-900"
-                  />
+                  <div>
+                    <p className="mb-1 text-xs text-blue-900/70 dark:text-blue-200/70">
+                      修改后的正文（必填）
+                    </p>
+                    <MarkdownEditor
+                      value={appealContent}
+                      onChange={(v) => setAppealContent(v.slice(0, 20000))}
+                      accessToken={getAccessToken()}
+                      rows={8}
+                      placeholder="修改后的正文（支持 Markdown）"
+                      disabled={
+                        appealBusy ||
+                        (!!appeal &&
+                          (appeal.status === "approved" || appeal.status === "rejected"))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <p className="mb-1 text-xs text-blue-900/70 dark:text-blue-200/70">
+                      给版主的补充回复（可选）
+                    </p>
+                    <MarkdownEditor
+                      value={appealReply}
+                      onChange={(v) => setAppealReply(v.slice(0, 2000))}
+                      accessToken={getAccessToken()}
+                      rows={3}
+                      compact
+                      placeholder="用于追问 / 补充材料"
+                      disabled={
+                        appealBusy ||
+                        (!!appeal &&
+                          (appeal.status === "approved" || appeal.status === "rejected"))
+                      }
+                    />
+                  </div>
                   {appealError ? (
                     <p className="text-sm text-red-600 dark:text-red-400">{appealError}</p>
                   ) : null}
@@ -1163,9 +1180,10 @@ export default function PostDetailPage() {
                 </form>
               </section>
             ) : null}
-            <div className="mt-8 whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-800 dark:text-zinc-200">
-              {post.content}
-            </div>
+            <SafeMarkdown
+              markdown={post.content}
+              className="mt-8 text-sm leading-relaxed text-zinc-800 dark:text-zinc-200"
+            />
             {post.tags?.length ? (
               <div className="mt-4 flex flex-wrap gap-2">
                 {post.tags.map((tag) => (
@@ -1242,21 +1260,22 @@ export default function PostDetailPage() {
                     </button>
                   </p>
                 ) : null}
-                <textarea
-                  className="min-h-[100px] w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+                <MarkdownEditor
+                  value={commentBody}
+                  onChange={setCommentBody}
+                  accessToken={getAccessToken()}
+                  compact
+                  rows={5}
                   placeholder={
                     isSealed
                       ? "该帖已封禁，不可评论"
                       : commentsLocked
                         ? "该帖已锁评，不可评论"
                       : getAccessToken()
-                        ? "写评论…"
+                        ? "写评论…（支持 Markdown）"
                         : "登录后可发表评论"
                   }
-                  value={commentBody}
-                  onChange={(e) => setCommentBody(e.target.value)}
                   disabled={!getAccessToken() || isSealed || commentsLocked}
-                  rows={4}
                 />
                 {commentSubmitError ? (
                   <p className="mt-2 text-sm text-red-600 dark:text-red-400">

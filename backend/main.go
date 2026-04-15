@@ -10,6 +10,9 @@ import (
 	"myreddit/pkg/snowflake"
 	"myreddit/routes"
 	"myreddit/settings"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"go.uber.org/zap"
 )
@@ -51,6 +54,18 @@ func main() {
 	if err := snowflake.Init(settings.Conf.StartTime, settings.Conf.MachineID); err != nil {
 		fmt.Printf("init snowflake failed, err:%v\n", err)
 		return
+	}
+
+	if u := settings.Conf.Upload; u != nil && u.Enabled && strings.TrimSpace(u.Dir) != "" {
+		dir, err := filepath.Abs(strings.TrimSpace(u.Dir))
+		if err != nil {
+			fmt.Printf("upload dir abs failed: %v\n", err)
+			return
+		}
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			fmt.Printf("mkdir upload dir failed: %v\n", err)
+			return
+		}
 	}
 
 	if err := controller.InitTrans("zh"); err != nil {
